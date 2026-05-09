@@ -19,15 +19,39 @@ export class WorkspaceRepository {
   }
 
   /**
+   * Membuat Workspace Baru
+   */
+  async createWorkspace(data: { id: string, name: string, category?: string, status?: string, priority?: string, description?: string, areaInfo?: string, image?: string }) {
+    await db.insert(workspaces).values(data);
+    return data.id;
+  }
+
+  /**
    * Membuat atau Update geofence Polygon dari WKT 
    */
   async saveGeofence(workspaceId: string, wktString: string) {
-    // Pada PostgreSQL, mengubah WKT ke geografi dilakukan memakai ::geography atau ST_GeogFromText
+    // Menggunakan ST_GeomFromText dengan SRID 4326 agar sesuai dengan tipe geometry di Drizzle
     return await db.insert(geofences).values({
       workspaceId,
-      polygonInfo: sql`ST_GeogFromText(${wktString})` as any
+      polygonInfo: sql`ST_GeomFromText(${wktString}, 4326)` as any
     });
   }
+
+  /**
+   * Memperbarui data Workspace berdasarkan ID
+   */
+  async updateWorkspace(id: string, data: { name?: string, description?: string, status?: string, priority?: string, image?: string }) {
+    await db.update(workspaces).set(data).where(eq(workspaces.id, id));
+  }
+
+  /**
+   * Menghapus Workspace beserta geofence-nya (cascade dari foreign key)
+   */
+  async deleteWorkspace(id: string) {
+    // Geofence terhapus otomatis karena ada onDelete: 'cascade' di schema
+    await db.delete(workspaces).where(eq(workspaces.id, id));
+  }
+
 
   /**
    * Pengecekan Point In Polygon menggunakan fungsi PostGIS: ST_Contains atau ST_Covers

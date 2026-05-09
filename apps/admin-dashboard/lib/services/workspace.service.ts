@@ -26,6 +26,14 @@ export class WorkspaceService {
     }
 
     const rings = geojsonObj.coordinates.map((ring: number[][]) => {
+      // Pastikan polygon ring tertutup (titik awal = titik akhir)
+      if (ring.length > 0) {
+        const first = ring[0];
+        const last = ring[ring.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+          ring.push([...first]);
+        }
+      }
       return '(' + ring.map(coord => `${coord[0]} ${coord[1]}`).join(', ') + ')';
     });
 

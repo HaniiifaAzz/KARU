@@ -1,14 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import {
   MapContainer,
   TileLayer,
   FeatureGroup,
-  Polygon,
-  Tooltip,
+  useMap,
 } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
@@ -22,35 +21,23 @@ const DEFAULT_ICON = L.icon({
 });
 L.Marker.prototype.options.icon = DEFAULT_ICON;
 
-// Existing example zones (read-only reference)
-const existingZones = [
-  {
-    id: "zoneA",
-    name: "Arboretum Barat",
-    coords: [
-      [-3.46, -62.21],
-      [-3.46, -62.19],
-      [-3.48, -62.18],
-      [-3.48, -62.20],
-    ] as [number, number][],
-    color: "#10b981",
-  },
-  {
-    id: "zoneB",
-    name: "Lab Iklim Mikro B",
-    coords: [
-      [-3.43, -62.16],
-      [-3.44, -62.14],
-      [-3.46, -62.15],
-      [-3.45, -62.17],
-    ] as [number, number][],
-    color: "#8b5cf6",
-  },
-];
+// Koordinat fallback: Subang, Jawa Barat
+const SUBANG_CENTER: [number, number] = [-6.5641, 107.7620];
+
+// ── Helper: komponen dalam peta yang memindahkan view setelah geolocation ──
+function RecenterMap({ position }: { position: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) {
+      map.setView(position, 15, { animate: true });
+    }
+  }, [position, map]);
+  return null;
+}
 
 // Calculate geodesic area in hectares from latlngs
 function calcAreaHa(latlngs: L.LatLng[]): number {
-  const R = 6378137; // Earth radius in meters
+  const R = 6378137;
   let area = 0;
   const n = latlngs.length;
   for (let i = 0; i < n; i++) {
@@ -74,11 +61,35 @@ function calcCentroid(latlngs: L.LatLng[]): string {
 
 interface Props {
   category: "makro" | "mikro";
-  onAreaDrawn: (areaHa: number, coordsStr: string) => void;
+  onAreaDrawn: (areaHa: number, coordsStr: string, geojson?: any) => void;
 }
 
 export default function DrawableMapComponent({ category, onAreaDrawn }: Props) {
   const polygonColor = category === "makro" ? "#10b981" : "#8b5cf6";
+
+  // State untuk menyimpan posisi GPS pengguna
+  const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
+  const [geoStatus, setGeoStatus] = useState<"loading" | "success" | "denied" | "unavailable">("loading");
+
+  // Minta geolocation saat komponen pertama kali dimuat
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoStatus("unavailable");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserPosition([pos.coords.latitude, pos.coords.longitude]);
+        setGeoStatus("success");
+      },
+      () => {
+        // Ditolak atau timeout → pakai fallback Subang
+        setGeoStatus("denied");
+      },
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: true }
+    );
+  }, []);
 
   const handleCreated = useCallback(
     (e: any) => {
@@ -86,9 +97,9 @@ export default function DrawableMapComponent({ category, onAreaDrawn }: Props) {
       const latlngs = layer.getLatLngs()[0] as L.LatLng[];
       const areaHa = calcAreaHa(latlngs);
       const centroid = calcCentroid(latlngs);
-      onAreaDrawn(areaHa, centroid);
+      const geojson = layer.toGeoJSON();
+      onAreaDrawn(areaHa, centroid, geojson.geometry);
 
-      // Style the drawn polygon to match chosen category
       layer.setStyle({
         color: polygonColor,
         fillColor: polygonColor,
@@ -100,81 +111,89 @@ export default function DrawableMapComponent({ category, onAreaDrawn }: Props) {
   );
 
   const handleDeleted = useCallback(() => {
-    onAreaDrawn(0, "");
+    onAreaDrawn(0, "", null);
   }, [onAreaDrawn]);
 
   return (
-    <MapContainer
-      center={[-3.45, -62.18]}
-      zoom={13}
-      scrollWheelZoom
-      style={{ height: "100%", width: "100%" }}
-      className="h-full w-full"
-    >
-      {/* Satellite-style tile layer */}
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-      />
+    <div className="relative h-full w-full">
+      {/* Status bar geolocation */}
+      <div className="absolute top-14 right-3 z-[1000]">
+        {geoStatus === "loading" && (
+          <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow border border-white/60 flex items-center gap-2 text-[10px] font-bold text-slate-500">
+            <span className="material-symbols-outlined text-[14px] animate-spin text-emerald-500">refresh</span>
+            Mencari lokasi Anda...
+          </div>
+        )}
+        {geoStatus === "success" && (
+          <div className="bg-emerald-50/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow border border-emerald-200 flex items-center gap-2 text-[10px] font-bold text-emerald-700">
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>my_location</span>
+            Peta di lokasi Anda
+          </div>
+        )}
+        {(geoStatus === "denied" || geoStatus === "unavailable") && (
+          <div className="bg-amber-50/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow border border-amber-200 flex items-center gap-2 text-[10px] font-bold text-amber-700">
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_off</span>
+            Default: Subang, Jawa Barat
+          </div>
+        )}
+      </div>
 
-      {/* Street name overlay */}
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution=""
-        opacity={0.3}
-      />
+      <MapContainer
+        center={SUBANG_CENTER}
+        zoom={13}
+        scrollWheelZoom
+        style={{ height: "100%", width: "100%" }}
+        className="h-full w-full"
+      >
+        {/* Pindahkan view ke lokasi nyata pengguna setelah geolocation selesai */}
+        <RecenterMap position={userPosition} />
 
-      {/* Existing reference zones (read-only) */}
-      {existingZones.map((zone) => (
-        <Polygon
-          key={zone.id}
-          positions={zone.coords}
-          pathOptions={{
-            color: zone.color,
-            fillColor: zone.color,
-            fillOpacity: 0.15,
-            weight: 2,
-            dashArray: "6 4",
-          }}
-        >
-          <Tooltip
-            direction="center"
-            permanent
-            className="bg-transparent border-none shadow-none font-bold text-xs"
-          >
-            {zone.name}
-          </Tooltip>
-        </Polygon>
-      ))}
-
-      {/* Drawing tools */}
-      <FeatureGroup>
-        <EditControl
-          position="topleft"
-          onCreated={handleCreated}
-          onDeleted={handleDeleted}
-          draw={{
-            polygon: {
-              allowIntersection: false,
-              showArea: true,
-              shapeOptions: {
-                color: polygonColor,
-                fillColor: polygonColor,
-                fillOpacity: 0.2,
-                weight: 3,
-              },
-            },
-            rectangle: false,
-            circle: false,
-            circlemarker: false,
-            marker: false,
-            polyline: false,
-          }}
-          edit={{
-            remove: true,
-          }}
+        {/* === Tile Layer: Esri Satellite + OpenStreetMap Label Overlay ===
+             Foto satelit resolusi tinggi (Esri) +
+             Nama jalan & wilayah nyata dari OpenStreetMap */}
+        <TileLayer
+          attribution='Tiles &copy; Esri &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={20}
         />
-      </FeatureGroup>
-    </MapContainer>
+
+        {/* Label overlay: nama jalan, kota, tempat dari OpenStreetMap */}
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          opacity={0.55}
+          maxZoom={20}
+        />
+
+        {/* Drawing tools */}
+        <FeatureGroup>
+          <EditControl
+            position="topleft"
+            onCreated={handleCreated}
+            onDeleted={handleDeleted}
+            draw={{
+              polygon: {
+                allowIntersection: false,
+                showArea: true,
+                shapeOptions: {
+                  color: polygonColor,
+                  fillColor: polygonColor,
+                  fillOpacity: 0.2,
+                  weight: 3,
+                },
+              },
+              rectangle: false,
+              circle: false,
+              circlemarker: false,
+              marker: false,
+              polyline: false,
+            }}
+            edit={{
+              remove: true,
+            }}
+          />
+        </FeatureGroup>
+      </MapContainer>
+    </div>
   );
 }

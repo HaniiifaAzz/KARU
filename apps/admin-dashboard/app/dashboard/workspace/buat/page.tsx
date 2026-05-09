@@ -2,7 +2,9 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { createWorkspaceAction } from '@/app/actions/workspace.actions';
 
 const DrawableMap = dynamic(() => import('@/components/DrawableMapComponent'), {
   ssr: false,
@@ -65,9 +67,12 @@ export default function BuatWorkspacePage() {
   const [priority, setPriority] = useState<ZonePriority>('normal');
   const [drawnArea, setDrawnArea] = useState<number | null>(null);
   const [drawnCoords, setDrawnCoords] = useState<string>('');
+  const [geojsonData, setGeojsonData] = useState<any>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     namaZona: '',
@@ -80,9 +85,15 @@ export default function BuatWorkspacePage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleAreaDrawn = useCallback((areaha: number, coordsStr: string) => {
+  const handleAreaDrawn = useCallback((areaha: number, coordsStr: string, geojson?: any) => {
     setDrawnArea(areaha);
     setDrawnCoords(coordsStr);
+    setGeojsonData(geojson || null);
+    // ── Auto-deteksi kategori berdasarkan luas ──────────────────────────────
+    // Aturan: luas < 1 Ha → Lahan Mikro, luas ≥ 1 Ha → Lahan Makro
+    if (areaha > 0) {
+      setCategory(areaha < 1 ? 'mikro' : 'makro');
+    }
   }, []);
 
   const handleImageFile = (file: File) => {
@@ -104,7 +115,36 @@ export default function BuatWorkspacePage() {
     if (file) handleImageFile(file);
   };
 
-  const isFormValid = formData.namaZona.trim() !== '' && drawnArea !== null;
+  const isFormValid = formData.namaZona.trim() !== '' && drawnArea !== null && geojsonData !== null && !isSubmitting;
+
+  const handleSubmit = async () => {
+    if (!isFormValid) return;
+    setIsSubmitting(true);
+    
+    try {
+      const result = await createWorkspaceAction({
+        name: formData.namaZona,
+        description: formData.deskripsi,
+        category,
+        status,
+        priority,
+        areaInfo: drawnArea ? `${drawnArea < 1 ? (drawnArea * 10000).toFixed(0) + ' m²' : drawnArea.toFixed(2) + ' Ha'}` : '',
+        image: coverImage || undefined
+      }, geojsonData);
+
+      if (result.success) {
+        alert('Ruang kerja berhasil disimpan!');
+        router.push('/dashboard/workspace');
+      } else {
+        alert(result.error || 'Terjadi kesalahan saat menyimpan ruang kerja.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Terjadi kesalahan pada server.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -129,11 +169,21 @@ export default function BuatWorkspacePage() {
             Batal
           </Link>
           <button
+            onClick={handleSubmit}
             disabled={!isFormValid}
             className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-container text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-900/15 hover:brightness-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
           >
-            <span className="material-symbols-outlined text-[18px]">save</span>
-            Simpan Ruang Kerja
+            {isSubmitting ? (
+              <>
+                <span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>
+                Menyimpan...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-[18px]">save</span>
+                Simpan Ruang Kerja
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -187,29 +237,56 @@ export default function BuatWorkspacePage() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </section>
 
-          {/* Kategori Zona */}
+          {/* Kategori Zona — otomatis terdeteksi dari luas polygon */}
           <section>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-              Kategori Zona <span className="text-rose-500">*</span>
+              Kategori Zona <span className="text-slate-400 font-normal normal-case">(otomatis)</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              {(Object.entries(CATEGORY_CONFIG) as [ZoneCategory, typeof CATEGORY_CONFIG.makro][]).map(([key, cfg]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setCategory(key)}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 ${category === key ? cfg.ring : cfg.inactive}`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${category === key ? cfg.iconBg : 'bg-slate-100'}`}>
-                    <span className={`material-symbols-outlined text-[20px] ${category === key ? cfg.iconColor : 'text-slate-400'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                      {cfg.icon}
-                    </span>
-                  </div>
-                  <p className={`font-bold text-sm ${category === key ? cfg.label_color : 'text-slate-600'}`}>{cfg.label}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{cfg.desc}</p>
-                </button>
-              ))}
-            </div>
+            {drawnArea !== null && drawnArea > 0 ? (
+              <div className={`p-4 rounded-2xl border-2 flex items-center gap-4 transition-all duration-300 ${
+                category === 'makro'
+                  ? 'ring-2 ring-offset-1 ring-emerald-500 bg-emerald-50 border-emerald-400'
+                  : 'ring-2 ring-offset-1 ring-violet-500 bg-violet-50 border-violet-400'
+              }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  category === 'makro' ? 'bg-emerald-100' : 'bg-violet-100'
+                }`}>
+                  <span
+                    className={`material-symbols-outlined text-[22px] ${
+                      category === 'makro' ? 'text-emerald-600' : 'text-violet-600'
+                    }`}
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    {category === 'makro' ? 'landscape' : 'science'}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <p className={`font-extrabold text-sm ${
+                    category === 'makro' ? 'text-emerald-800' : 'text-violet-800'
+                  }`}>
+                    {category === 'makro' ? 'Lahan Makro' : 'Lahan Mikro'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {category === 'makro'
+                      ? `Luas ≥ 1 Ha — terdeteksi ${drawnArea.toFixed(2)} Ha`
+                      : `Luas < 1 Ha — terdeteksi ${(drawnArea * 10000).toFixed(0)} m²`}
+                  </p>
+                </div>
+                <span className={`text-[9px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider ${
+                  category === 'makro' ? 'bg-emerald-200 text-emerald-800' : 'bg-violet-200 text-violet-800'
+                }`}>Auto</span>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-[22px] text-slate-300">category</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-400">Menunggu polygon digambar</p>
+                  <p className="text-[11px] text-slate-300 mt-0.5">Kategori akan terisi otomatis sesuai luas area</p>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Informasi Zona */}
@@ -340,7 +417,7 @@ export default function BuatWorkspacePage() {
               <li className="flex gap-2"><span className="font-bold text-blue-400">1.</span> Klik ikon polygon di panel kiri peta</li>
               <li className="flex gap-2"><span className="font-bold text-blue-400">2.</span> Klik pada peta untuk menambahkan titik batas</li>
               <li className="flex gap-2"><span className="font-bold text-blue-400">3.</span> Double-klik atau klik titik pertama untuk menutup</li>
-              <li className="flex gap-2"><span className="font-bold text-blue-400">4.</span> Data luas &amp; koordinat otomatis terisi di atas</li>
+              <li className="flex gap-2"><span className="font-bold text-blue-400">4.</span> Luas &amp; kategori zona <strong>otomatis terdeteksi</strong></li>
             </ol>
           </section>
 
@@ -354,10 +431,21 @@ export default function BuatWorkspacePage() {
               <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-widest">Mode Gambar Aktif</span>
             </div>
           </div>
+          {/* Badge kategori otomatis di pojok kiri atas peta */}
           <div className="absolute top-4 left-4 z-[1000]">
-            <span className={`text-[11px] font-bold px-3 py-1.5 rounded-full border uppercase tracking-widest shadow-sm backdrop-blur-md bg-white/90 ${CATEGORY_CONFIG[category].badge}`}>
-              {CATEGORY_CONFIG[category].label}
-            </span>
+            {drawnArea !== null && drawnArea > 0 ? (
+              <span className={`text-[11px] font-bold px-3 py-1.5 rounded-full border uppercase tracking-widest shadow-sm backdrop-blur-md bg-white/90 ${
+                category === 'makro'
+                  ? CATEGORY_CONFIG['makro'].badge
+                  : CATEGORY_CONFIG['mikro'].badge
+              }`}>
+                {category === 'makro' ? '🌿 Lahan Makro' : '🔬 Lahan Mikro'} · Auto
+              </span>
+            ) : (
+              <span className="text-[11px] font-bold px-3 py-1.5 rounded-full border uppercase tracking-widest shadow-sm backdrop-blur-md bg-white/90 text-slate-500 border-slate-200">
+                Gambar area untuk deteksi
+              </span>
+            )}
           </div>
           <DrawableMap category={category} onAreaDrawn={handleAreaDrawn} />
         </div>
