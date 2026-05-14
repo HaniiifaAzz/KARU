@@ -1,321 +1,428 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { getDashboardSummaryAction, generateAiDashboardInsightAction } from '@/app/actions/dashboard.actions';
+import { getRecentActivityLogsAction } from '@/app/actions/activity-log.actions';
 
 export default function DashboardPage() {
+  // State Metrik Dasbor
+  const [summary, setSummary] = useState({
+    totalWorkspaces: 0,
+    totalArea: 12480,
+    activeNodesCount: 0,
+    totalScans: 0,
+    totalSops: 0,
+    distribution: { penyakit: 45, hama: 30, sehat: 25 },
+    dailyTrend: [] as { day: string; count: number }[],
+  });
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+
+  // State Aktivitas Terbaru
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+
+  // State Insight AI
+  const [aiInsightHtml, setAiInsightHtml] = useState<string | null>(null);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+
+  // Fungsi Load Data
+  const loadDashboardData = useCallback(async () => {
+    setIsLoadingMetrics(true);
+    setIsLoadingLogs(true);
+
+    try {
+      const [metricsRes, logsRes] = await Promise.all([
+        getDashboardSummaryAction(),
+        getRecentActivityLogsAction(5),
+      ]);
+
+      if (metricsRes.success && metricsRes.data) {
+        setSummary(metricsRes.data as any);
+      }
+      if (logsRes.success && logsRes.data) {
+        setRecentLogs(logsRes.data as any[]);
+      }
+    } catch (err) {
+      console.error('Gagal memuat dasbor umum:', err);
+    } finally {
+      setIsLoadingMetrics(false);
+      setIsLoadingLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Handler Hasilkan Ringkasan AI
+  const handleGenerateAiInsight = async () => {
+    setIsGeneratingAi(true);
+    setAiInsightHtml(null);
+    try {
+      const res = await generateAiDashboardInsightAction();
+      if (res.success && res.data) {
+        setAiInsightHtml(res.data);
+      } else {
+        setAiInsightHtml('<p className="text-rose-600">Gagal menyusun panduan AI. Silakan coba lagi.</p>');
+      }
+    } catch (err) {
+      setAiInsightHtml('<p className="text-rose-600">Terjadi kesalahan saat memanggil asisten AI.</p>');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  // Kalkulasi total pindaian untuk persentase distribusi
+  const totalDist = summary.distribution.penyakit + summary.distribution.hama + summary.distribution.sehat;
+  const pPenyakit = totalDist > 0 ? Math.round((summary.distribution.penyakit / totalDist) * 100) : 45;
+  const pHama = totalDist > 0 ? Math.round((summary.distribution.hama / totalDist) * 100) : 30;
+  const pSehat = totalDist > 0 ? Math.round((summary.distribution.sehat / totalDist) * 100) : 25;
+
+  // Nilai maksimum tren harian untuk penskalaan bar
+  const maxTrend = summary.dailyTrend.reduce((max, t) => Math.max(max, t.count), 5);
+
   return (
-    <div className="p-8 pb-12 space-y-8 max-w-[1600px] mx-auto w-full">
+    <div className="p-4 md:p-8 pb-16 space-y-8 max-w-[1600px] mx-auto w-full">
       {/* Header Section */}
-      <section className="flex justify-between items-end">
+      <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-outline-variant/10 pb-6">
         <div>
-          <h1 className="text-3xl font-extrabold text-primary tracking-tight font-headline">Halaman Dashboard</h1>
-          <p className="text-on-surface-variant font-medium mt-1">Metrik kinerja biologis waktu nyata di seluruh sektor yang dipantau.</p>
+          <h1 className="text-3xl font-manrope font-extrabold text-primary tracking-tight font-headline">
+            Dasbor Utama KARU
+          </h1>
+          <p className="text-slate-500 font-medium mt-1 text-sm md:text-base">
+            Metrik operasional waktu nyata, distribusi pindaian biometrik, dan kendali penasihat AI otonom.
+          </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-2xl font-semibold text-sm hover:opacity-90 transition-all shadow-md">
-          <span className="material-symbols-outlined text-sm">download</span>
-          Ekspor Laporan
-        </button>
-      </section>
-
-      {/* Metric Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant/10">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 bg-primary-fixed rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary">landscape</span>
-            </div>
-            <span className="text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded-full">+4.2%</span>
-          </div>
-          <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wider">Total Lahan</p>
-          <h3 className="text-2xl font-extrabold text-primary mt-1 font-headline">12,480 Ha</h3>
-        </div>
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant/10">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 bg-secondary-fixed rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-secondary">qr_code_scanner</span>
-            </div>
-            <span className="text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded-full">Aktif</span>
-          </div>
-          <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wider">Node QR Aktif</p>
-          <h3 className="text-2xl font-extrabold text-primary mt-1 font-headline">8,102</h3>
-        </div>
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant/10">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 bg-tertiary-fixed rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-tertiary">sensors</span>
-            </div>
-            <span className="text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded-full">+12%</span>
-          </div>
-          <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wider">Pemindaian Harian</p>
-          <h3 className="text-2xl font-extrabold text-primary mt-1 font-headline">34.2K</h3>
-        </div>
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant/10">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 bg-error-container rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-error">warning</span>
-            </div>
-            <span className="text-error text-xs font-bold bg-error-container px-2 py-1 rounded-full">Kritis</span>
-          </div>
-          <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wider">Peringatan Kritis</p>
-          <h3 className="text-2xl font-extrabold text-primary mt-1 font-headline">07</h3>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={loadDashboardData}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/80 text-slate-700 rounded-xl font-semibold text-xs hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <span className={`material-symbols-outlined text-[16px] ${isLoadingMetrics ? 'animate-spin' : ''}`}>
+              refresh
+            </span>
+            Segarkan Metrik
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary-container text-white rounded-xl font-semibold text-xs hover:opacity-95 transition-all shadow-md shadow-emerald-950/10 active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            Cetak Laporan
+          </button>
         </div>
       </section>
 
-      {/* Middle Section: Asymmetric Layout */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Middle Left: Plant Health Trend (Large) */}
-        <div className="lg:col-span-2 bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/10 flex flex-col">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-xl font-bold text-primary font-headline">Tren Kesehatan Tanaman</h2>
-              <p className="text-sm text-on-surface-variant font-medium">Fotosintesis, Kelembapan, dan Indeks Penyerapan Nutrisi</p>
-            </div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 bg-surface-container text-xs font-semibold rounded-lg text-primary">7H</button>
-              <button className="px-3 py-1 hover:bg-surface-container text-xs font-semibold rounded-lg text-on-surface-variant transition-colors">30H</button>
-              <button className="px-3 py-1 hover:bg-surface-container text-xs font-semibold rounded-lg text-on-surface-variant transition-colors">90H</button>
-            </div>
+      {/* Metric Cards Seragam dengan gaya premium sistem */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Ruang Kerja */}
+        <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50">
+            <span className="material-symbols-outlined text-[24px] text-emerald-700" style={{ fontVariationSettings: "'FILL' 1" }}>
+              landscape
+            </span>
           </div>
-          <div className="flex-1 w-full min-h-[300px] relative mt-4">
-            {/* Legend */}
-            <div className="absolute top-0 right-0 flex gap-4 z-20">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-primary"></div>
-                <span className="text-[11px] font-bold text-on-surface-variant">Fotosintesis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-primary-fixed"></div>
-                <span className="text-[11px] font-bold text-on-surface-variant">Kelembapan</span>
-              </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Lahan</p>
+              <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Aktif</span>
             </div>
-
-            {/* X and Y Axis Chart Area */}
-            <div className="flex h-[260px] w-full pt-10">
-              {/* Y-Axis */}
-              <div className="flex flex-col justify-between text-xs text-outline font-semibold pb-8 pr-4 w-12 text-right">
-                <span>100%</span>
-                <span>75%</span>
-                <span>50%</span>
-                <span>25%</span>
-                <span>0%</span>
-              </div>
-
-              {/* Chart Grid */}
-              <div className="flex-1 relative border-l-2 border-b-2 border-surface-container-high h-[228px] mt-1.5">
-                {/* Horizontal Grid Lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none z-0">
-                  <div className="w-full border-t border-dashed border-surface-variant"></div>
-                  <div className="w-full border-t border-dashed border-surface-variant"></div>
-                  <div className="w-full border-t border-dashed border-surface-variant"></div>
-                  <div className="w-full border-t border-dashed border-surface-variant"></div>
-                  <div className="w-full"></div>
-                </div>
-
-                {/* Bars Container */}
-                <div className="absolute inset-0 flex items-end justify-around px-2 z-10 w-full h-full">
-                  {/* Day 1 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[45%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[65%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Sen</span>
-                  </div>
-
-                  {/* Day 2 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[52%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[58%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Sel</span>
-                  </div>
-
-                  {/* Day 3 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[60%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[72%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Rab</span>
-                  </div>
-
-                  {/* Day 4 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[75%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[80%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Kam</span>
-                  </div>
-
-                  {/* Day 5 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[85%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[92%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Jum</span>
-                  </div>
-
-                  {/* Day 6 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[94%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[88%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Sab</span>
-                  </div>
-
-                  {/* Day 7 */}
-                  <div className="flex flex-col h-full justify-end items-center group relative flex-1">
-                    <div className="flex items-end justify-center w-full gap-1 sm:gap-2 h-full z-10">
-                      <div className="w-3 sm:w-5 h-[80%] bg-primary rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                      <div className="w-3 sm:w-5 h-[85%] bg-primary-fixed rounded-t-md hover:brightness-110 transition-all cursor-pointer relative group-hover:opacity-90"></div>
-                    </div>
-                    <span className="text-xs font-bold text-on-surface-variant absolute -bottom-7">Min</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4 pt-8 border-t border-surface-container mt-auto">
-            <div>
-              <p className="text-[10px] text-on-surface-variant font-bold uppercase">Efisiensi Puncak</p>
-              <p className="text-lg font-extrabold text-primary pt-1 font-headline">94.2%</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-on-surface-variant font-bold uppercase">Rata-rata Kelembapan</p>
-              <p className="text-lg font-extrabold text-primary pt-1 font-headline">68%</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-on-surface-variant font-bold uppercase">Indeks Pertumbuhan</p>
-              <p className="text-lg font-extrabold text-primary pt-1 font-headline">+2.4</p>
-            </div>
+            <p className="text-2xl font-manrope font-extrabold text-emerald-700 mt-0.5">
+              {isLoadingMetrics ? '...' : `${summary.totalWorkspaces} Area`}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium">Est. cakupan: {summary.totalArea} Ha</p>
           </div>
         </div>
 
-        {/* Middle Right: Recent Activity */}
-        <div className="bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/10">
-          <h2 className="text-xl font-bold text-primary mb-6 font-headline">Aktivitas Terbaru</h2>
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <div className="relative">
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center z-10 relative">
-                  <span className="material-symbols-outlined text-emerald-700 text-lg">check_circle</span>
-                </div>
-                <div className="absolute top-10 left-1/2 w-[2px] h-10 bg-surface-container transform -translate-x-1/2"></div>
-              </div>
+        {/* Card 2: Node QR */}
+        <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-teal-50">
+            <span className="material-symbols-outlined text-[24px] text-teal-700" style={{ fontVariationSettings: "'FILL' 1" }}>
+              qr_code_scanner
+            </span>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Node QR Online</p>
+            <p className="text-2xl font-manrope font-extrabold text-teal-700 mt-0.5">
+              {isLoadingMetrics ? '...' : summary.activeNodesCount}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium">Stiker terverifikasi di lapangan</p>
+          </div>
+        </div>
+
+        {/* Card 3: Pindaian AI */}
+        <div className="bg-white rounded-2xl p-5 border border-sky-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-sky-50">
+            <span className="material-symbols-outlined text-[24px] text-sky-700" style={{ fontVariationSettings: "'FILL' 1" }}>
+              sensors
+            </span>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Log Pindaian AI</p>
+            <p className="text-2xl font-manrope font-extrabold text-sky-700 mt-0.5">
+              {isLoadingMetrics ? '...' : summary.totalScans}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium">Diagnosis multimodal Gemini</p>
+          </div>
+        </div>
+
+        {/* Card 4: SOP Aktif */}
+        <div className="bg-white rounded-2xl p-5 border border-violet-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-violet-50">
+            <span className="material-symbols-outlined text-[24px] text-violet-700" style={{ fontVariationSettings: "'FILL' 1" }}>
+              library_books
+            </span>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SOP & Panduan</p>
+            <p className="text-2xl font-manrope font-extrabold text-violet-700 mt-0.5">
+              {isLoadingMetrics ? '...' : summary.totalSops}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium">Instruksi penanganan terdaftar</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Middle Section: Asymmetric Layout (Analitik Kiri, Aktivitas Kanan) */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bagian Kiri: Distribusi & Tren Pindaian AI (2 Kolom) */}
+        <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <p className="text-sm font-bold text-on-surface leading-tight">Node #4821 Kalibrasi Ulang</p>
-                <p className="text-xs text-on-surface-variant mt-1">Pemeliharaan otonom berhasil.</p>
-                <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase">12 menit yang lalu</p>
+                <h2 className="text-lg font-bold text-primary font-headline">Distribusi Diagnosis & Tren AI</h2>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  Proporsi deteksi anomali biometrik (Penyakit vs Hama vs Normal) dan pengiriman data harian
+                </p>
+              </div>
+              <span className="text-[10px] font-extrabold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                Waktu Nyata
+              </span>
+            </div>
+
+            {/* Representasi Visual Distribusi Proporsional */}
+            <div className="space-y-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Proporsi Sebaran Kasus</p>
+              
+              {/* Stacked Progress Bar */}
+              <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                <div
+                  style={{ width: `${pPenyakit}%` }}
+                  className="bg-rose-500 h-full transition-all duration-500 hover:brightness-110"
+                  title={`Penyakit: ${pPenyakit}%`}
+                />
+                <div
+                  style={{ width: `${pHama}%` }}
+                  className="bg-amber-500 h-full transition-all duration-500 hover:brightness-110"
+                  title={`Hama: ${pHama}%`}
+                />
+                <div
+                  style={{ width: `${pSehat}%` }}
+                  className="bg-emerald-500 h-full transition-all duration-500 hover:brightness-110"
+                  title={`Sehat/Normal: ${pSehat}%`}
+                />
+              </div>
+
+              {/* Legend Distribusi */}
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-100/60 text-center">
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Penyakit</span>
+                  </div>
+                  <p className="text-base font-extrabold text-rose-950">{pPenyakit}%</p>
+                  <p className="text-[9px] text-slate-400 font-bold">{summary.distribution.penyakit} log</p>
+                </div>
+
+                <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-100/60 text-center">
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Hama</span>
+                  </div>
+                  <p className="text-base font-extrabold text-amber-950">{pHama}%</p>
+                  <p className="text-[9px] text-slate-400 font-bold">{summary.distribution.hama} log</p>
+                </div>
+
+                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100/60 text-center">
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Sehat</span>
+                  </div>
+                  <p className="text-base font-extrabold text-emerald-950">{pSehat}%</p>
+                  <p className="text-[9px] text-slate-400 font-bold">{summary.distribution.sehat} log</p>
+                </div>
               </div>
             </div>
-            <div className="flex gap-4">
-              <div className="relative">
-                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center z-10 relative">
-                  <span className="material-symbols-outlined text-amber-700 text-lg">warning</span>
-                </div>
-                <div className="absolute top-10 left-1/2 w-[2px] h-10 bg-surface-container transform -translate-x-1/2"></div>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-on-surface leading-tight">Defisit Nutrisi Terdeteksi</p>
-                <p className="text-xs text-on-surface-variant mt-1">Sektor 12B memerlukan penyesuaian nitrogen.</p>
-                <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase">1 jam yang lalu</p>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="relative">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center z-10 relative">
-                  <span className="material-symbols-outlined text-blue-700 text-lg">water_drop</span>
-                </div>
-                <div className="absolute top-10 left-1/2 w-[2px] h-10 bg-surface-container transform -translate-x-1/2"></div>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-on-surface leading-tight">Siklus Irigasi Selesai</p>
-                <p className="text-xs text-on-surface-variant mt-1">Kisi Barat Laut terhidrasi optimal.</p>
-                <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase">4 jam yang lalu</p>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-slate-700 text-lg">person_add</span>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-on-surface leading-tight">Ilmuwan Baru Diundang</p>
-                <p className="text-xs text-on-surface-variant mt-1">Akses diberikan kepada Dr. Elena K.</p>
-                <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase">Hari ini, 09:12 AM</p>
+
+            {/* Tren Harian Pindaian (7 Hari Terakhir) */}
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
+                Aktivitas Pemindaian 7 Hari Terakhir
+              </p>
+              <div className="flex items-end justify-between gap-2 h-32 pt-4 px-2">
+                {summary.dailyTrend.map((item, i) => {
+                  const heightPercent = maxTrend > 0 ? Math.max(12, Math.round((item.count / maxTrend) * 100)) : 12;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group h-full justify-end">
+                      {/* Nilai Tooltip hover di atas bar */}
+                      <span className="text-[9px] font-bold text-slate-400 group-hover:text-primary transition-colors">
+                        {item.count}
+                      </span>
+                      {/* Bar grafik murni CSS */}
+                      <div
+                        style={{ height: `${heightPercent}%` }}
+                        className="w-full max-w-[28px] bg-emerald-100 group-hover:bg-primary rounded-t-lg transition-all duration-300 relative"
+                      />
+                      {/* Label Hari */}
+                      <span className="text-[10px] font-bold text-slate-500 uppercase mt-1">
+                        {item.day}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
-          <Link href="/dashboard/log-aktivitas" className="block text-center w-full mt-8 py-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-colors rounded-xl border border-dashed border-emerald-200">
-            Lihat Log Audit
+
+          <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 font-medium">
+            <span>Metode: Klasifikasi Saraf Multimodal Gemini</span>
+            <Link href="/dashboard/reports-ai" className="text-primary font-bold hover:underline flex items-center gap-1">
+              Lihat Detail Laporan AI <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Bagian Kanan: Aktivitas Terbaru (1 Kolom) */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-primary font-headline">Aktivitas Sistem</h2>
+              <span className="material-symbols-outlined text-slate-300 text-[20px]">history</span>
+            </div>
+
+            {isLoadingLogs ? (
+              <div className="py-20 text-center text-xs text-slate-400 space-y-2">
+                <span className="material-symbols-outlined animate-spin text-2xl text-emerald-500 block">refresh</span>
+                <p>Memuat jejak audit terbaru...</p>
+              </div>
+            ) : recentLogs.length === 0 ? (
+              <div className="py-20 text-center text-xs text-slate-400 space-y-2">
+                <span className="material-symbols-outlined text-3xl text-slate-300 block">assignment</span>
+                <p>Belum ada riwayat aktivitas yang tercatat.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentLogs.map((log) => {
+                  // Tentukan warna ikon berdasarkan tipe
+                  let bg = 'bg-slate-100 text-slate-600';
+                  let icon = 'info';
+                  if (log.type === 'create') { bg = 'bg-emerald-100 text-emerald-700'; icon = 'add_circle'; }
+                  else if (log.type === 'update') { bg = 'bg-blue-100 text-blue-700'; icon = 'edit'; }
+                  else if (log.type === 'delete') { bg = 'bg-rose-100 text-rose-700'; icon = 'delete'; }
+                  else if (log.type === 'auth') { bg = 'bg-violet-100 text-violet-700'; icon = 'login'; }
+                  else if (log.type === 'system') { bg = 'bg-amber-100 text-amber-700'; icon = 'memory'; }
+
+                  const timeFormatted = log.createdAt
+                    ? new Date(log.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                    : '';
+
+                  return (
+                    <div key={log.id} className="flex gap-3 group">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${bg} mt-0.5`}>
+                        <span className="material-symbols-outlined text-[16px]">{icon}</span>
+                      </div>
+                      <div className="min-w-0 flex-1 border-b border-slate-50 pb-3 group-last:border-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold text-slate-800 truncate">{log.action}</p>
+                          <span className="text-[9px] font-bold text-slate-400 flex-shrink-0">{timeFormatted}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
+                          {log.description}
+                        </p>
+                        <span className="text-[9px] font-bold text-primary uppercase tracking-wider block mt-1">
+                          {log.userName || 'Sistem Otonom'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <Link
+            href="/dashboard/log-aktivitas"
+            className="block text-center w-full mt-6 py-2.5 bg-slate-50 hover:bg-emerald-50/50 text-xs font-bold text-emerald-800 transition-colors rounded-xl border border-slate-200/60"
+          >
+            Lihat Log Audit Lengkap
           </Link>
         </div>
       </section>
 
-      {/* Bottom: Weekly AI Insight Hub */}
-      <section className="bg-surface-container p-8 rounded-2xl border border-surface-container-high/50">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+      {/* Bottom Section: Pusat Insight AI Eksekutif berbasis Gemini */}
+      <section className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 p-6 md:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        {/* Efek latar belakang dekoratif */}
+        <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-1/3 bottom-0 w-60 h-60 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-6 border-b border-white/10">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="material-symbols-outlined text-primary">auto_awesome</span>
-              <h2 className="text-xl font-extrabold text-primary font-headline">Pusat Insight AI Mingguan</h2>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="material-symbols-outlined text-emerald-400 animate-pulse text-2xl">auto_awesome</span>
+              <h2 className="text-xl font-extrabold tracking-tight">Pusat Penasihat Eksekutif AI</h2>
             </div>
-            <p className="text-sm text-on-surface-variant max-w-2xl font-medium">Pemrosesan saraf data sensor untuk memprediksi pergeseran ekologis dan optimalisasi sumber daya untuk 7 hari ke depan.</p>
+            <p className="text-xs md:text-sm text-emerald-100/80 max-w-2xl leading-relaxed">
+              Ditenagai oleh <strong>Google Gemini 2.5 Flash</strong>. Sistem akan menyusun parameter telemetri pindaian dan status stiker fisik terkini untuk menghasilkan saran tindakan strategis instan.
+            </p>
           </div>
-          <button className="px-6 py-3 bg-primary text-on-primary rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-primary-container transition-all">
-            <span className="material-symbols-outlined text-sm">cycle</span>
-            Hasilkan Ringkasan AI
+
+          <button
+            type="button"
+            disabled={isGeneratingAi}
+            onClick={handleGenerateAiInsight}
+            className="px-6 py-3 bg-white hover:bg-emerald-50 text-emerald-950 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-80 flex-shrink-0 whitespace-nowrap"
+          >
+            <span className={`material-symbols-outlined text-[16px] text-emerald-700 ${isGeneratingAi ? 'animate-spin' : ''}`}>
+              {isGeneratingAi ? 'autorenew' : 'psychology'}
+            </span>
+            {isGeneratingAi ? 'Menganalisis Telemetri...' : 'Hasilkan Rekomendasi AI'}
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* AI Insight Report Card */}
-          <div className="lg:col-span-2 bg-emerald-50/50 p-8 rounded-2xl border border-emerald-100/50 relative overflow-hidden">
-            <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary/5 rounded-full blur-2xl pointer-events-none"></div>
-            <div className="flex items-start gap-4 relative z-10">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0">
-                <span className="material-symbols-outlined text-primary text-2xl">description</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded">Status: Saat Ini</span>
-                <h3 className="text-lg font-extrabold text-emerald-950 mt-3 font-headline">Proyeksi Ekologis Eksekutif KARU</h3>
-                <div className="mt-4 space-y-4 text-emerald-900 leading-relaxed text-sm">
-                  <p>Berdasarkan tren kelembapan saat ini dan konsentrasi nitrogen tanah di <strong className="text-emerald-800">Sektor 14 hingga 18</strong>, sistem memprediksi <strong className="text-emerald-800">peningkatan 14%</strong> dalam output biomassa pada siklus berikutnya. Kami merekomendasikan saturasi air preventif di Kisi Utara untuk mengatasi prakiraan kenaikan suhu lingkungan sebesar 2°C.</p>
-                  <p>Analisis AI terhadap pemindaian node QR menunjukkan sedikit penurunan dalam aktivitas penyerbuk. Hal ini kemungkinan bersifat musiman tetapi memerlukan penempatan node jaring aroma tambahan di dekat <strong className="text-emerald-800">Koridor Biodiversitas</strong>.</p>
-                </div>
-              </div>
+
+        {/* Area Tampilan Hasil Analisis AI */}
+        <div className="pt-6 relative z-10">
+          {isGeneratingAi ? (
+            <div className="bg-black/20 backdrop-blur-md rounded-2xl p-8 text-center space-y-3 border border-white/10">
+              <span className="material-symbols-outlined text-4xl text-emerald-400 animate-spin block">refresh</span>
+              <p className="text-xs font-bold text-emerald-200 tracking-wider uppercase">
+                Menyusun Sintesis Prediktif Agronomi...
+              </p>
+              <p className="text-xs text-emerald-100/60 max-w-md mx-auto">
+                Gemini sedang membandingkan sebaran pindaian hama dan memetakan penugasan stiker QR fisik kebun Anda.
+              </p>
             </div>
-          </div>
-          {/* Strategic Recommendations */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-            <h3 className="text-sm font-bold text-primary mb-4 flex items-center gap-2 uppercase tracking-wide font-headline">
-              <span className="material-symbols-outlined text-base">verified_user</span>
-              Tindakan Strategis
-            </h3>
-            <ul className="space-y-4">
-              <li className="flex items-center gap-3 p-3 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer group border border-transparent hover:border-emerald-100">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Tingkatkan Irigasi: Sektor 09</span>
-                <span className="material-symbols-outlined text-slate-300 ml-auto text-sm group-hover:text-emerald-600 transition-colors">chevron_right</span>
-              </li>
-              <li className="flex items-center gap-3 p-3 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer group border border-transparent hover:border-emerald-100">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Segarkan Node QR: N-4822</span>
-                <span className="material-symbols-outlined text-slate-300 ml-auto text-sm group-hover:text-emerald-600 transition-colors">chevron_right</span>
-              </li>
-              <li className="flex items-center gap-3 p-3 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer group border border-transparent hover:border-emerald-100">
-                <div className="w-2 h-2 rounded-full bg-emerald-300"></div>
-                <span className="text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Pembaruan Firmware: Core 01</span>
-                <span className="material-symbols-outlined text-slate-300 ml-auto text-sm group-hover:text-emerald-600 transition-colors">chevron_right</span>
-              </li>
-              <li className="flex items-center gap-3 p-3 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer group border border-transparent hover:border-emerald-100">
-                <div className="w-2 h-2 rounded-full bg-emerald-100"></div>
-                <span className="text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Tinjau Log Akses</span>
-                <span className="material-symbols-outlined text-slate-300 ml-auto text-sm group-hover:text-emerald-600 transition-colors">chevron_right</span>
-              </li>
-            </ul>
-          </div>
+          ) : aiInsightHtml ? (
+            <div className="bg-white text-slate-800 rounded-2xl p-6 md:p-8 shadow-inner border border-emerald-100 space-y-4 text-sm leading-relaxed font-medium">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100 text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                <span className="material-symbols-outlined text-base">verified</span>
+                Sintesis Rekomendasi Otonom KARU
+              </div>
+              {/* Render keluaran HTML aman dari Gemini */}
+              <div
+                className="ai-insight-content space-y-3"
+                dangerouslySetInnerHTML={{ __html: aiInsightHtml }}
+              />
+            </div>
+          ) : (
+            <div className="bg-black/20 rounded-2xl p-6 text-center border border-white/5">
+              <p className="text-xs text-emerald-200/70 font-medium">
+                Tekan tombol <strong>"Hasilkan Rekomendasi AI"</strong> di atas untuk menyarikan panduan operasional kebun Anda saat ini.
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </div>

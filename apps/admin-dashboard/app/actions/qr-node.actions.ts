@@ -1,0 +1,86 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
+import { QrNodeRepository } from '@/lib/repositories/qr-node.repository';
+import { QrNodeService } from '@/lib/services/qr-node.service';
+
+const qrNodeRepo = new QrNodeRepository();
+const qrNodeService = new QrNodeService();
+
+/**
+ * Mendapatkan semua batch QR Node beserta info workspace dan pembuatnya
+ */
+export async function getAllBatchesAction() {
+  try {
+    const batches = await qrNodeRepo.getAllBatches();
+    return { success: true, data: batches };
+  } catch (error: any) {
+    console.error('Error fetching QR batches:', error);
+    return { success: false, error: error.message || 'Gagal memuat data batch QR.', data: [] };
+  }
+}
+
+/**
+ * Membuat batch baru dan men-generate QR nodes-nya
+ */
+export async function createBatchAction(data: {
+  workspaceId: string;
+  zone: string;
+  nodeCount: number;
+  prefix: string;
+  keterangan?: string;
+}) {
+  try {
+    // Coba dapatkan user dari sesi saat ini
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    // Gunakan userId dari sesi, atau fallback aman untuk development/testing jika belum login
+    const createdBy = session?.user?.id || 'admin_seed_id';
+
+    const result = await qrNodeService.generateNewBatch({
+      workspaceId: data.workspaceId,
+      zone: data.zone || 'Ruang Utama',
+      nodeCount: data.nodeCount,
+      prefix: data.prefix || 'KARU-NODE',
+      createdBy,
+    });
+
+    revalidatePath('/dashboard/qr-node');
+    return result;
+  } catch (error: any) {
+    console.error('Error creating QR batch:', error);
+    return { success: false, error: error.message || 'Gagal men-generate batch QR Node.' };
+  }
+}
+
+/**
+ * Menghapus batch QR (termasuk seluruh nodes di dalamnya via cascade)
+ */
+export async function deleteBatchAction(batchId: string) {
+  try {
+    await qrNodeRepo.deleteBatch(batchId);
+    revalidatePath('/dashboard/qr-node');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting QR batch:', error);
+    return { success: false, error: error.message || 'Gagal menghapus batch QR.' };
+  }
+}
+
+/**
+ * Mengubah status batch (misal dari 'Belum Dicetak' menjadi 'Dicetak')
+ */
+export async function updateBatchStatusAction(batchId: string, status: 'Dicetak' | 'Belum Dicetak') {
+  try {
+    await qrNodeRepo.updateBatchStatus(batchId, status);
+    revalidatePath('/dashboard/qr-node');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating batch status:', error);
+    return { success: false, error: error.message || 'Gagal memperbarui status batch.' };
+  }
+}

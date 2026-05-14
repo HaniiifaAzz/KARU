@@ -174,3 +174,18 @@ export const aiScanLogs = pgTable('ai_scan_logs', {
   probability: integer('probability'), // 0 - 100
   scannedAt: timestamp('scanned_at').defaultNow(),
 });
+
+/* =========================================================================
+   6. ACTIVITY / AUDIT LOGS
+========================================================================= */
+export const activityLogs = pgTable('activity_logs', {
+  id: serial('id').primaryKey(),
+  type: varchar('type', { length: 50 }).notNull(), // create, update, delete, system, auth
+  action: varchar('action', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  userRole: varchar('user_role', { length: 100 }),
+  userName: varchar('user_name', { length: 255 }),
+  ipAddress: varchar('ip_address', { length: 100 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

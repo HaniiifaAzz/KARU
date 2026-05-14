@@ -1,193 +1,266 @@
-import React from 'react';
+'use client';
 
-// Types for Activity Log
-type ActivityType = 'create' | 'update' | 'delete' | 'system' | 'auth';
+import React, { useState, useEffect } from 'react';
+import { getActivityLogsAction } from '@/app/actions/activity-log.actions';
 
-type ActivityLog = {
-  id: string;
-  type: ActivityType;
-  action: string;
-  description: string;
-  user: string;
-  role: string;
-  timestamp: string;
-  ipAddress: string;
-};
-
-const MOCK_LOGS: ActivityLog[] = [
-  {
-    id: 'LOG-001',
-    type: 'system',
-    action: 'Kalibrasi Node Selesai',
-    description: 'Node #4821 berhasil melakukan kalibrasi otonom.',
-    user: 'Sistem',
-    role: 'System',
-    timestamp: '2026-04-24 21:50:12',
-    ipAddress: '192.168.1.100',
-  },
-  {
-    id: 'LOG-002',
-    type: 'update',
-    action: 'Pembaruan Node QR',
-    description: 'Sektor 12B memiliki penyesuaian nitrogen.',
-    user: 'Dr. Aris Thorne',
-    role: 'Admin Utama',
-    timestamp: '2026-04-24 20:45:00',
-    ipAddress: '192.168.1.42',
-  },
-  {
-    id: 'LOG-003',
-    type: 'system',
-    action: 'Siklus Irigasi',
-    description: 'Kisi Barat Laut terhidrasi optimal.',
-    user: 'Sistem',
-    role: 'System',
-    timestamp: '2026-04-24 17:30:25',
-    ipAddress: '192.168.1.101',
-  },
-  {
-    id: 'LOG-004',
-    type: 'auth',
-    action: 'Login Berhasil',
-    description: 'Akses diberikan kepada Dr. Elena K.',
-    user: 'Dr. Elena K.',
-    role: 'Operator',
-    timestamp: '2026-04-24 09:12:05',
-    ipAddress: '114.120.45.12',
-  },
-  {
-    id: 'LOG-005',
-    type: 'create',
-    action: 'Tambah Pengguna Baru',
-    description: 'Membuat akun pengguna baru untuk operator wilayah timur.',
-    user: 'Dr. Aris Thorne',
-    role: 'Admin Utama',
-    timestamp: '2026-04-23 14:30:10',
-    ipAddress: '192.168.1.42',
-  },
-  {
-    id: 'LOG-006',
-    type: 'delete',
-    action: 'Hapus Akses Pengguna',
-    description: 'Menghapus hak akses untuk pengguna ID #1823.',
-    user: 'Dr. Aris Thorne',
-    role: 'Admin Utama',
-    timestamp: '2026-04-23 10:15:44',
-    ipAddress: '192.168.1.42',
-  },
-];
-
-const TYPE_CONFIG: Record<ActivityType, { icon: string; bg: string; color: string; label: string }> = {
-  create: { icon: 'add_circle', bg: 'bg-emerald-100', color: 'text-emerald-700', label: 'Tambah' },
-  update: { icon: 'edit', bg: 'bg-blue-100', color: 'text-blue-700', label: 'Ubah' },
-  delete: { icon: 'delete', bg: 'bg-red-100', color: 'text-red-700', label: 'Hapus' },
-  system: { icon: 'memory', bg: 'bg-slate-100', color: 'text-slate-700', label: 'Sistem' },
-  auth: { icon: 'login', bg: 'bg-violet-100', color: 'text-violet-700', label: 'Autentikasi' },
+// Konfigurasi visual untuk masing-masing tipe log
+const TYPE_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
+  create: { bg: 'bg-emerald-50', color: 'text-emerald-700', label: 'Tambah Data' },
+  update: { bg: 'bg-blue-50', color: 'text-blue-700', label: 'Ubah Data' },
+  delete: { bg: 'bg-rose-50', color: 'text-rose-700', label: 'Hapus Data' },
+  system: { bg: 'bg-amber-50', color: 'text-amber-700', label: 'Sistem Otonom' },
+  auth: { bg: 'bg-violet-50', color: 'text-violet-700', label: 'Autentikasi' },
 };
 
 export default function LogAktivitasPage() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('semua');
+  const [page, setPage] = useState(1);
+  const limit = 15;
+
+  // Fetch data log aktivitas dengan debounce pada pencarian
+  useEffect(() => {
+    setPage(1); // Reset halaman ke 1 setiap kali filter atau pencarian berubah
+  }, [search, typeFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      async function fetchLogs() {
+        setIsLoading(true);
+        try {
+          const res = await getActivityLogsAction({
+            type: typeFilter,
+            search: search,
+            limit: limit,
+            offset: (page - 1) * limit,
+          });
+          if (res.success && res.data) {
+            setLogs(res.data as any[]);
+          } else {
+            setLogs([]);
+          }
+        } catch (err) {
+          console.error('Gagal mengambil data log aktivitas:', err);
+          setLogs([]);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      fetchLogs();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search, typeFilter, page]);
+
+  // Handler ekspor ke CSV secara lokal
+  const handleExportCsv = () => {
+    if (logs.length === 0) return;
+    const headers = ['Waktu', 'Pelaku', 'Peran', 'Aksi', 'Deskripsi', 'Tipe', 'IP Address'];
+    const rows = logs.map(l => [
+      l.createdAt ? new Date(l.createdAt).toLocaleString('id-ID') : '-',
+      `"${l.userName || 'Sistem'}"`,
+      `"${l.userRole || 'Sistem Otonom'}"`,
+      `"${l.action || '-'}"`,
+      `"${(l.description || '').replace(/"/g, '""')}"`,
+      l.type || '-',
+      l.ipAddress || '-'
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Log_Audit_KARU_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full pb-20">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-outline-variant/10 pb-6">
         <div>
-          <h1 className="text-3xl font-manrope font-extrabold text-emerald-950 tracking-tight">Log Aktivitas</h1>
-          <p className="text-slate-500 mt-1 max-w-xl">
-            Pantau seluruh riwayat aktivitas dan log audit perubahan dalam sistem KARU.
+          <h1 className="text-3xl font-manrope font-extrabold text-emerald-950 tracking-tight font-headline">
+            Log Aktivitas & Audit
+          </h1>
+          <p className="text-slate-500 mt-1 max-w-xl text-sm md:text-base">
+            Pantau seluruh riwayat interaksi, modifikasi data master, dan jejak audit perubahan dalam sistem KARU.
           </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Ekspor Log
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={logs.length === 0}
+          className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50 active:scale-95"
+        >
+          <span className="material-symbols-outlined text-[16px]">download</span>
+          Ekspor Log (CSV)
         </button>
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-white rounded-2xl p-4 flex flex-wrap items-center gap-3 shadow-sm border border-slate-100">
-        <div className="relative flex-1 min-w-[220px]">
-          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+      {/* Filter Bar Terintegrasi */}
+      <div className="bg-white rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm border border-slate-100">
+        {/* Search Input Real-time */}
+        <div className="relative flex-1 min-w-[240px]">
+          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
+            search
+          </span>
           <input
-            placeholder="Cari aktivitas, pengguna, atau IP..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari deskripsi aktivitas, nama pelaku, atau IP Address..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+            >
+              ✕
+            </button>
+          )}
         </div>
-        
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <select className="bg-slate-100 border-0 rounded-xl py-2 pl-3 pr-7 text-[12px] font-bold text-slate-600 focus:ring-2 focus:ring-primary/20 outline-none appearance-none">
-              <option value="semua">Semua Tipe</option>
-              <option value="sistem">Sistem</option>
-              <option value="pengguna">Pengguna</option>
-            </select>
-            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[14px]">expand_more</span>
-          </div>
 
-          <div className="relative">
-            <select className="bg-slate-100 border-0 rounded-xl py-2 pl-3 pr-7 text-[12px] font-bold text-slate-600 focus:ring-2 focus:ring-primary/20 outline-none appearance-none">
-              <option value="semua">7 Hari Terakhir</option>
-              <option value="30d">30 Hari Terakhir</option>
-              <option value="all">Semua Waktu</option>
+        {/* Pemilih Filter Tipe Aktivitas */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5">
+            <span className="material-symbols-outlined text-[16px] text-slate-400">filter_alt</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-transparent border-0 text-xs font-bold text-slate-700 focus:ring-0 outline-none cursor-pointer pr-2"
+            >
+              <option value="semua">Semua Kategori</option>
+              <option value="create">Tambah Data</option>
+              <option value="update">Ubah Data</option>
+              <option value="delete">Hapus Data</option>
+              <option value="system">Sistem Otonom</option>
+              <option value="auth">Autentikasi</option>
             </select>
-            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[14px]">expand_more</span>
           </div>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Tabel Utama Log Aktivitas */}
       <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+        <div className="overflow-x-auto pr-1">
+          <table className="w-full text-left border-collapse min-w-[950px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 text-[10px] font-manrope font-bold text-slate-400 uppercase tracking-widest w-[160px]">Waktu</th>
-                <th className="px-6 py-4 text-[10px] font-manrope font-bold text-slate-400 uppercase tracking-widest w-[200px]">Pengguna</th>
-                <th className="px-6 py-4 text-[10px] font-manrope font-bold text-slate-400 uppercase tracking-widest min-w-[200px]">Aktivitas</th>
-                <th className="px-6 py-4 text-[10px] font-manrope font-bold text-slate-400 uppercase tracking-widest w-[150px]">Kategori</th>
-                <th className="px-6 py-4 text-[10px] font-manrope font-bold text-slate-400 uppercase tracking-widest w-[160px]">IP Address</th>
+                <th className="px-6 py-4 text-[10px] font-manrope font-extrabold text-slate-400 uppercase tracking-widest w-[180px]">
+                  Waktu Perekaman
+                </th>
+                <th className="px-6 py-4 text-[10px] font-manrope font-extrabold text-slate-400 uppercase tracking-widest w-[220px]">
+                  Pelaku & Peran
+                </th>
+                <th className="px-6 py-4 text-[10px] font-manrope font-extrabold text-slate-400 uppercase tracking-widest min-w-[250px]">
+                  Rincian Aktivitas
+                </th>
+                <th className="px-6 py-4 text-[10px] font-manrope font-extrabold text-slate-400 uppercase tracking-widest w-[140px]">
+                  Kategori
+                </th>
+                <th className="px-6 py-4 text-[10px] font-manrope font-extrabold text-slate-400 uppercase tracking-widest w-[160px]">
+                  Alamat IP
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {MOCK_LOGS.map((log) => {
-                const config = TYPE_CONFIG[log.type];
-                return (
-                  <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="text-xs font-bold text-slate-700">{log.timestamp}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-slate-700">{log.user}</p>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">{log.role}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 leading-tight">{log.action}</p>
-                        <p className="text-xs text-slate-500 mt-0.5 max-w-lg">{log.description}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1.5 object-contain rounded-lg text-[10px] font-bold tracking-wide border ${config.bg.replace('100', '50')} ${config.color} border-${config.color.replace('text-', '')}/20`}>
-                        {config.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs text-slate-500 font-mono tracking-tight bg-slate-100 px-2.5 py-1 rounded-md">{log.ipAddress}</span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-20 text-center">
+                    <span className="material-symbols-outlined animate-spin text-3xl text-emerald-500 block mb-2">
+                      refresh
+                    </span>
+                    <p className="text-xs font-bold text-slate-400">Memuat rekam aktivitas dari server...</p>
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-20 text-center">
+                    <span className="material-symbols-outlined text-4xl text-slate-300 block mb-2">
+                      history_toggle_off
+                    </span>
+                    <p className="text-xs font-bold text-slate-500">Tidak ada log aktivitas yang sesuai dengan kueri.</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Coba sesuaikan kata kunci pencarian atau kategori filter.</p>
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => {
+                  const config = TYPE_CONFIG[log.type] || { bg: 'bg-slate-50', color: 'text-slate-700', label: log.type || 'Lainnya' };
+                  const timeStr = log.createdAt ? new Date(log.createdAt).toLocaleString('id-ID', {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                  }) : '-';
+
+                  return (
+                    <tr key={log.id} className="hover:bg-slate-50/60 transition-colors group">
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-slate-700 font-mono tracking-tight">{timeStr}</p>
+                      </td>
+                      <td className="px-6 py-4 min-w-0">
+                        <p className="text-xs font-extrabold text-slate-800 truncate">
+                          {log.userName || 'Sistem Otonom'}
+                        </p>
+                        <p className="text-[9px] uppercase font-extrabold text-primary tracking-wider mt-0.5">
+                          {log.userRole || 'Sistem'}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 min-w-0">
+                        <p className="text-xs font-extrabold text-slate-900 leading-tight">
+                          {log.action}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-2 leading-relaxed pr-2">
+                          {log.description}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[9px] font-extrabold uppercase tracking-wider ${config.bg} ${config.color} border border-slate-100`}>
+                          {config.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-[11px] text-slate-500 font-mono font-bold tracking-tight bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                          {log.ipAddress || '127.0.0.1'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        
-        {/* Pagination */}
+
+        {/* Paginasi Dinamis */}
         <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <p className="text-xs font-semibold text-slate-500 hidden sm:block">Menampilkan {MOCK_LOGS.length} dari {MOCK_LOGS.length} entri</p>
-          <div className="flex items-center gap-1.5 sm:ml-auto w-full sm:w-auto justify-between">
-            <button disabled className="px-3 py-1.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed">Sebelumnya</button>
-            <div className="flex gap-1">
-              <button className="w-7 h-7 flex items-center justify-center text-xs font-bold bg-primary text-white rounded-lg shadow-sm">1</button>
-            </div>
-            <button disabled className="px-3 py-1.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed">Selanjutnya</button>
+          <p className="text-xs font-medium text-slate-500 hidden sm:block">
+            Halaman <strong className="text-slate-700">{page}</strong> (Maksimal {limit} entri/halaman)
+          </p>
+          <div className="flex items-center gap-2 sm:ml-auto w-full sm:w-auto justify-between">
+            <button
+              type="button"
+              disabled={page === 1 || isLoading}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-all disabled:opacity-40 disabled:hover:bg-white active:scale-95"
+            >
+              Sebelumnya
+            </button>
+            <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg font-mono">
+              {page}
+            </span>
+            <button
+              type="button"
+              disabled={logs.length < limit || isLoading}
+              onClick={() => setPage(p => p + 1)}
+              className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-all disabled:opacity-40 disabled:hover:bg-white active:scale-95"
+            >
+              Selanjutnya
+            </button>
           </div>
         </div>
       </div>

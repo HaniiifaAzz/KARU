@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getWorkspacesAction, deleteWorkspaceAction, updateWorkspaceAction } from '@/app/actions/workspace.actions';
+import { getAllBatchesAction } from '@/app/actions/qr-node.actions';
 
 // ── Type dari database ─────────────────────────────────────────────────────────
 type WorkspaceItem = {
@@ -90,6 +91,23 @@ function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem
     const [showDelete, setShowDelete] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState('');
+
+    // State Node Terdaftar
+    const [wsBatches, setWsBatches] = useState<any[]>([]);
+    const [isLoadingNodes, setIsLoadingNodes] = useState(true);
+
+    useEffect(() => {
+        async function fetchNodes() {
+            setIsLoadingNodes(true);
+            const r = await getAllBatchesAction();
+            if (r.success) {
+                const all = r.data as any[];
+                setWsBatches(all.filter(b => b.workspaceId === ws.id));
+            }
+            setIsLoadingNodes(false);
+        }
+        fetchNodes();
+    }, [ws.id]);
 
     const handleImageFile = (file: File) => {
         if (!file.type.startsWith('image/')) return;
@@ -188,21 +206,47 @@ function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem
                     <p className="text-sm text-slate-600 leading-relaxed font-medium">{ws.description ?? 'Belum ada deskripsi.'}</p>
                 </section>
 
-                {/* Node placeholder */}
+                {/* Set Node QR Terdaftar */}
                 <section>
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Node Terdaftar</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Set Node QR Terdaftar</p>
                         <Link href="/dashboard/qr-node" onClick={onClose} className="text-xs font-bold text-emerald-700 hover:text-emerald-600 flex items-center gap-1">
                             <span className="material-symbols-outlined text-[14px]">open_in_new</span>Kelola Node
                         </Link>
                     </div>
-                    <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-5 flex items-center gap-4">
-                        <span className="material-symbols-outlined text-3xl text-slate-300">qr_code_2</span>
-                        <div>
-                            <p className="text-sm font-bold text-slate-500">Node terhubung otomatis</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Node yang ditugaskan ke workspace ini akan muncul di sini.</p>
+                    {isLoadingNodes ? (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center text-xs text-slate-400">
+                            <span className="material-symbols-outlined animate-spin text-[18px] block mb-1">refresh</span>
+                            Memuat data stiker QR Node...
                         </div>
-                    </div>
+                    ) : wsBatches.length === 0 ? (
+                        <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-5 flex items-center gap-4">
+                            <span className="material-symbols-outlined text-3xl text-slate-300">qr_code_2</span>
+                            <div>
+                                <p className="text-sm font-bold text-slate-500">Belum ada node stiker QR</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Generate set node QR baru untuk ruang kerja ini di halaman QR Node.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                            {wsBatches.map(b => (
+                                <div key={b.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3 hover:border-emerald-200 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-mono font-bold text-xs flex-shrink-0">
+                                            QR
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-mono font-extrabold text-slate-800 truncate">{b.id}</p>
+                                            <p className="text-[10px] text-slate-500 truncate">Zona: {b.zone || 'Ruang Utama'} • <strong className="text-slate-700">{b.nodeCount} Nodes</strong></p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex-shrink-0 ${b.status?.toLowerCase() === 'dicetak' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                        {b.status || 'Belum Dicetak'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </section>
 
                 {/* Map info */}
