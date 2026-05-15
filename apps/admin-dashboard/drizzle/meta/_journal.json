@@ -15,6 +15,13 @@
       "when": 1778742014022,
       "tag": "0001_powerful_rick_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778863167735,
+      "tag": "0002_futuristic_pyro",
+      "breakpoints": true
     }
   ]
 }
