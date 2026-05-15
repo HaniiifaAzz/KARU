@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { QrNodeRepository } from '@/lib/repositories/qr-node.repository';
 import { QrNodeService } from '@/lib/services/qr-node.service';
+import { logActivity } from '@/lib/activity-logger';
 
 const qrNodeRepo = new QrNodeRepository();
 const qrNodeService = new QrNodeService();
@@ -49,6 +50,14 @@ export async function createBatchAction(data: {
       createdBy,
     });
 
+    if (result.success) {
+      await logActivity({
+        type: 'create',
+        action: 'Pencetakan Batch QR Node',
+        description: `Men-generate set batch baru berupa ${data.nodeCount} stiker QR fisik dengan prefix "${data.prefix || 'KARU-NODE'}" untuk Zona ${data.zone || 'Ruang Utama'}.`,
+      });
+    }
+
     revalidatePath('/dashboard/qr-node');
     return result;
   } catch (error: any) {
@@ -63,6 +72,13 @@ export async function createBatchAction(data: {
 export async function deleteBatchAction(batchId: string) {
   try {
     await qrNodeRepo.deleteBatch(batchId);
+
+    await logActivity({
+      type: 'delete',
+      action: 'Penghapusan Batch QR Node',
+      description: `Mencabut dan menghapus permanen set batch stiker QR ID #${batchId} dari sistem.`,
+    });
+
     revalidatePath('/dashboard/qr-node');
     return { success: true };
   } catch (error: any) {
@@ -77,6 +93,13 @@ export async function deleteBatchAction(batchId: string) {
 export async function updateBatchStatusAction(batchId: string, status: 'Dicetak' | 'Belum Dicetak') {
   try {
     await qrNodeRepo.updateBatchStatus(batchId, status);
+
+    await logActivity({
+      type: 'update',
+      action: 'Pembaruan Status Pencetakan QR',
+      description: `Memutakhirkan status fisik batch QR ID #${batchId} menjadi "${status}".`,
+    });
+
     revalidatePath('/dashboard/qr-node');
     return { success: true };
   } catch (error: any) {

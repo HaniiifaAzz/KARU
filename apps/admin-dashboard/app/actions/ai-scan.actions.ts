@@ -1,9 +1,34 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 import { AiScanRepository } from '@/lib/repositories/ai-scan.repository';
+import { createActivityLogAction } from '@/app/actions/activity-log.actions';
 
 const scanRepo = new AiScanRepository();
+
+// Helper pencatatan log otomatis
+async function logAiScanActivity(type: string, action: string, description: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const userName = session?.user?.name || session?.user?.email || 'Administrator';
+    const userRole = (session?.user as any)?.role || 'Administrator';
+
+    await createActivityLogAction({
+      type,
+      action,
+      description,
+      userId: session?.user?.id || null,
+      userName,
+      userRole,
+    });
+  } catch (err) {
+    console.error('Gagal mencatat log aktivitas pindaian AI:', err);
+  }
+}
 
 /**
  * Mengambil semua riwayat log pindaian AI beserta relasinya
@@ -24,6 +49,13 @@ export async function getAllScanLogsAction() {
 export async function deleteScanLogAction(id: number) {
   try {
     await scanRepo.deleteScanLog(id);
+
+    await logAiScanActivity(
+      'delete',
+      'Penghapusan Riwayat Diagnosis AI',
+      `Menghapus permanen rekam log diagnosis pindaian AI ID #${id} dari pangkalan data.`
+    );
+
     revalidatePath('/dashboard/reports-ai');
     return { success: true };
   } catch (error: any) {

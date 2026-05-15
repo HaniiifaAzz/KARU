@@ -189,3 +189,18 @@ export const activityLogs = pgTable('activity_logs', {
   ipAddress: varchar('ip_address', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+/* =========================================================================
+   7. SYSTEM SETTINGS (CMS)
+========================================================================= */
+export const systemSettings = pgTable('system_settings', {
+  id: integer('id').primaryKey().default(1),
+  siteName: varchar('site_name', { length: 255 }).default('KARU'),
+  siteDescription: text('site_description'),
+  logoUrl: text('logo_url'),
+  faviconUrl: text('favicon_url'),
+  footerText: text('footer_text'),
+  contactEmail: varchar('contact_email', { length: 255 }),
+  maintenanceMode: boolean('maintenance_mode').default(false),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});

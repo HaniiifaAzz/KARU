@@ -16,14 +16,13 @@ export default function LogAktivitasPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('semua');
   const [page, setPage] = useState(1);
   const limit = 15;
 
-  // Fetch data log aktivitas dengan debounce pada pencarian
+  // Reset halaman ke 1 setiap kali pencarian berubah
   useEffect(() => {
-    setPage(1); // Reset halaman ke 1 setiap kali filter atau pencarian berubah
-  }, [search, typeFilter]);
+    setPage(1);
+  }, [search]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -31,7 +30,7 @@ export default function LogAktivitasPage() {
         setIsLoading(true);
         try {
           const res = await getActivityLogsAction({
-            type: typeFilter,
+            type: 'semua',
             search: search,
             limit: limit,
             offset: (page - 1) * limit,
@@ -52,7 +51,7 @@ export default function LogAktivitasPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [search, typeFilter, page]);
+  }, [search, page]);
 
   // Handler ekspor ke CSV secara lokal
   const handleExportCsv = () => {
@@ -101,10 +100,10 @@ export default function LogAktivitasPage() {
         </button>
       </div>
 
-      {/* Filter Bar Terintegrasi */}
-      <div className="bg-white rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm border border-slate-100">
+      {/* Filter Bar Terintegrasi (Hanya Search Bar) */}
+      <div className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100">
         {/* Search Input Real-time */}
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative w-full">
           <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
             search
           </span>
@@ -113,7 +112,7 @@ export default function LogAktivitasPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari deskripsi aktivitas, nama pelaku, atau IP Address..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-10 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
           />
           {search && (
             <button
@@ -124,25 +123,6 @@ export default function LogAktivitasPage() {
               ✕
             </button>
           )}
-        </div>
-
-        {/* Pemilih Filter Tipe Aktivitas */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5">
-            <span className="material-symbols-outlined text-[16px] text-slate-400">filter_alt</span>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-transparent border-0 text-xs font-bold text-slate-700 focus:ring-0 outline-none cursor-pointer pr-2"
-            >
-              <option value="semua">Semua Kategori</option>
-              <option value="create">Tambah Data</option>
-              <option value="update">Ubah Data</option>
-              <option value="delete">Hapus Data</option>
-              <option value="system">Sistem Otonom</option>
-              <option value="auth">Autentikasi</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -186,7 +166,7 @@ export default function LogAktivitasPage() {
                       history_toggle_off
                     </span>
                     <p className="text-xs font-bold text-slate-500">Tidak ada log aktivitas yang sesuai dengan kueri.</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Coba sesuaikan kata kunci pencarian atau kategori filter.</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Coba sesuaikan kata kunci pencarian.</p>
                   </td>
                 </tr>
               ) : (

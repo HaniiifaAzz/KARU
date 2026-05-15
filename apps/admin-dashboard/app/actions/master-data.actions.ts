@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { MasterDataService } from '@/lib/services/master-data.service';
+import { logActivity } from '@/lib/activity-logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -89,6 +90,13 @@ export async function savePlantAction(formData: FormData) {
       await service.updatePlantPestRelations(savedId, pestIds);
     }
 
+    // Catat Log Aktivitas
+    await logActivity({
+      type: id && id.trim() !== '' ? 'update' : 'create',
+      action: id && id.trim() !== '' ? 'Pembaruan Tanaman' : 'Penambahan Tanaman',
+      description: `${id && id.trim() !== '' ? 'Memperbarui' : 'Menambahkan'} data tanaman "${namaLokal}" ke kamus sistem.`,
+    });
+
     revalidatePath('/dashboard/data-master/kamus-tanaman');
     return { success: true };
   } catch (error: any) {
@@ -100,6 +108,14 @@ export async function savePlantAction(formData: FormData) {
 export async function deletePlantAction(id: string) {
   try {
     await service.deletePlant(id);
+
+    // Catat Log Aktivitas
+    await logActivity({
+      type: 'delete',
+      action: 'Penghapusan Tanaman',
+      description: `Menghapus data tanaman dengan ID #${id} dari kamus sistem.`,
+    });
+
     revalidatePath('/dashboard/data-master/kamus-tanaman');
     return { success: true };
   } catch (error: any) {
@@ -165,6 +181,13 @@ export async function savePestAction(formData: FormData) {
       await service.updatePestPlantRelations(savedId, plantIds);
     }
 
+    // Catat Log Aktivitas
+    await logActivity({
+      type: id && id.trim() !== '' ? 'update' : 'create',
+      action: id && id.trim() !== '' ? 'Pembaruan Hama/Penyakit' : 'Penambahan Hama/Penyakit',
+      description: `${id && id.trim() !== '' ? 'Memperbarui' : 'Menambahkan'} data ${jenis} "${nama}" ke kamus sistem.`,
+    });
+
     revalidatePath('/dashboard/data-master/kamus-penyakit-hama');
     return { success: true };
   } catch (error: any) {
@@ -176,6 +199,14 @@ export async function savePestAction(formData: FormData) {
 export async function deletePestAction(id: string) {
   try {
     await service.deletePest(id);
+
+    // Catat Log Aktivitas
+    await logActivity({
+      type: 'delete',
+      action: 'Penghapusan Hama/Penyakit',
+      description: `Menghapus data hama/penyakit dengan ID #${id} dari kamus sistem.`,
+    });
+
     revalidatePath('/dashboard/data-master/kamus-penyakit-hama');
     return { success: true };
   } catch (error: any) {
@@ -245,6 +276,13 @@ export async function saveSopAction(formData: FormData) {
       await service.updateSopRelations(savedId, plantIds, pestIds);
     }
 
+    // Catat Log Aktivitas
+    await logActivity({
+      type: id && id.trim() !== '' ? 'update' : 'create',
+      action: id && id.trim() !== '' ? 'Pembaruan SOP' : 'Penambahan SOP',
+      description: `${id && id.trim() !== '' ? 'Memperbarui' : 'Menambahkan'} dokumen SOP "${judul}" (${kategori}) ke sistem.`,
+    });
+
     revalidatePath('/dashboard/data-master/sop-penanganan');
     return { success: true };
   } catch (error: any) {
@@ -256,6 +294,14 @@ export async function saveSopAction(formData: FormData) {
 export async function deleteSopAction(id: string) {
   try {
     await service.deleteSop(id);
+
+    // Catat Log Aktivitas
+    await logActivity({
+      type: 'delete',
+      action: 'Penghapusan SOP',
+      description: `Menghapus dokumen SOP dengan ID #${id} dari sistem secara permanen.`,
+    });
+
     revalidatePath('/dashboard/data-master/sop-penanganan');
     return { success: true };
   } catch (error: any) {

@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from '@/lib/auth-client';
+import { getSystemSettingsAction } from '@/app/actions/settings.actions';
 
 // ─────────────────────────────────────────────
 // Inner component: uses usePathname safely
@@ -28,6 +29,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [timeString, setTimeString] = useState('');
+  const [systemSettings, setSystemSettings] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadSettings() {
+      const res = await getSystemSettingsAction();
+      if (res.success) {
+        setSystemSettings(res.data);
+      }
+    }
+    loadSettings();
+  }, []);
 
   // Auto-open Data Master section when on those routes
   useEffect(() => {
@@ -84,8 +96,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     breadcrumbCategory = 'Administrasi';
     breadcrumbPage = 'Log Aktivitas';
   } else if (pathname.includes('/profile')) {
-    breadcrumbCategory = 'Pengaturan';
+    breadcrumbCategory = 'Pengguna';
     breadcrumbPage = 'Profil Saya';
+  } else if (pathname.includes('/settings')) {
+    breadcrumbCategory = 'Administrasi';
+    breadcrumbPage = 'Pengaturan Sistem';
   }
 
   const isActive = (path: string) => pathname === path;
@@ -109,10 +124,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="px-5 py-6 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-[72px] h-[72px] shrink-0 flex items-center justify-center -ml-2">
-              <img src="/logo-karu.png" alt="Logo KARU" className="w-full h-full object-contain drop-shadow-lg scale-110" />
+              <img src={systemSettings?.logoUrl || "/logo-karu.png"} alt="Logo" className="w-full h-full object-contain drop-shadow-lg scale-110" />
             </div>
             <div className="flex flex-col justify-center pt-1">
-              <span className="text-emerald-50 font-headline font-black text-3xl tracking-tight uppercase leading-none">KARU</span>
+              <span className="text-emerald-50 font-headline font-black text-2xl tracking-tight uppercase leading-none truncate max-w-[140px]">
+                {systemSettings?.siteName || "KARU"}
+              </span>
               <span className="text-[10px] uppercase tracking-widest text-emerald-400/80 font-bold mt-1">Ekologi Presisi</span>
             </div>
           </div>
@@ -139,8 +156,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => setIsDataMasterOpen(prev => !prev)}
               className={`w-full text-left flex items-center justify-between px-4 py-3 transition-all duration-200 ${isActivePrefix('/dashboard/data-master')
-                  ? 'text-emerald-300 border-l-4 border-emerald-400 bg-emerald-900/30 font-semibold'
-                  : 'text-emerald-100/60 hover:text-emerald-50 hover:bg-emerald-900/20'
+                ? 'text-emerald-300 border-l-4 border-emerald-400 bg-emerald-900/30 font-semibold'
+                : 'text-emerald-100/60 hover:text-emerald-50 hover:bg-emerald-900/20'
                 }`}
             >
               <span className="flex items-center gap-3">
@@ -156,8 +173,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 href="/dashboard/data-master/kamus-tanaman"
                 className={`pl-12 pr-4 py-2.5 text-[12px] transition-colors ${isActivePrefix('/dashboard/data-master/kamus-tanaman')
-                    ? 'text-emerald-300 font-bold'
-                    : 'text-emerald-100/50 hover:text-emerald-50 hover:bg-emerald-900/10'
+                  ? 'text-emerald-300 font-bold'
+                  : 'text-emerald-100/50 hover:text-emerald-50 hover:bg-emerald-900/10'
                   }`}
               >
                 Kamus Tanaman
@@ -165,8 +182,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 href="/dashboard/data-master/kamus-penyakit-hama"
                 className={`pl-12 pr-4 py-2.5 text-[12px] transition-colors ${isActivePrefix('/dashboard/data-master/kamus-penyakit-hama')
-                    ? 'text-emerald-300 font-bold'
-                    : 'text-emerald-100/50 hover:text-emerald-50 hover:bg-emerald-900/10'
+                  ? 'text-emerald-300 font-bold'
+                  : 'text-emerald-100/50 hover:text-emerald-50 hover:bg-emerald-900/10'
                   }`}
               >
                 Kamus Penyakit &amp; Hama
@@ -174,8 +191,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 href="/dashboard/data-master/sop-penanganan"
                 className={`pl-12 pr-4 py-2.5 text-[12px] transition-colors ${isActivePrefix('/dashboard/data-master/sop-penanganan')
-                    ? 'text-emerald-300 font-bold'
-                    : 'text-emerald-100/50 hover:text-emerald-50 hover:bg-emerald-900/10'
+                  ? 'text-emerald-300 font-bold'
+                  : 'text-emerald-100/50 hover:text-emerald-50 hover:bg-emerald-900/10'
                   }`}
               >
                 SOP Penanganan
@@ -208,7 +225,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-medium">Log Aktivitas</span>
           </Link>
 
-          <Link href="/dashboard/profile" className={navLinkClass(isActive('/dashboard/profile'))}>
+          <Link href="/dashboard/settings" className={navLinkClass(isActivePrefix('/dashboard/settings'))}>
             <span className="material-symbols-outlined">settings</span>
             <span className="text-sm font-medium">Pengaturan</span>
           </Link>
@@ -310,8 +327,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                         onClick={() => setIsProfileMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-                        Profil & Pengaturan
+                        <span className="material-symbols-outlined text-[18px]">account_circle</span>
+                        Profil Saya
                       </Link>
                     </div>
                     <div className="p-2 border-t border-slate-100">

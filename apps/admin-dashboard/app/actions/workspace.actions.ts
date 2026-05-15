@@ -1,8 +1,12 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 import { WorkspaceRepository } from '@/lib/repositories/workspace.repository';
 import { WorkspaceService } from '@/lib/services/workspace.service';
+import { logActivity } from '@/lib/activity-logger';
+
 
 // ─── GET ALL ─────────────────────────────────────────────────────────────────
 export async function getWorkspacesAction() {
@@ -53,6 +57,13 @@ export async function createWorkspaceAction(
       await service.setupWorkspaceGeofence(id, geojsonPolygon);
     }
 
+    // Catat log aktivitas
+    await logActivity({
+      type: 'create',
+      action: 'Pembuatan Ruang Kerja',
+      description: `Menambahkan ruang kerja baru "${data.name}" (${data.category || 'Makro'}) ke dalam sistem.`,
+    });
+
     revalidatePath('/dashboard/workspace');
     return { success: true, id };
   } catch (error: any) {
@@ -75,6 +86,14 @@ export async function updateWorkspaceAction(
   try {
     const repo = new WorkspaceRepository();
     await repo.updateWorkspace(id, data);
+
+    // Catat log aktivitas
+    await logActivity({
+      type: 'update',
+      action: 'Pembaruan Ruang Kerja',
+      description: `Memodifikasi atribut atau status pada ruang kerja ID #${id}.`,
+    });
+
     revalidatePath('/dashboard/workspace');
     return { success: true };
   } catch (error: any) {
@@ -88,6 +107,14 @@ export async function deleteWorkspaceAction(id: string) {
   try {
     const repo = new WorkspaceRepository();
     await repo.deleteWorkspace(id);
+
+    // Catat log aktivitas
+    await logActivity({
+      type: 'delete',
+      action: 'Penghapusan Ruang Kerja',
+      description: `Menghapus ruang kerja ID #${id} beserta konfigurasi batas geofencing terkait.`,
+    });
+
     revalidatePath('/dashboard/workspace');
     return { success: true };
   } catch (error: any) {

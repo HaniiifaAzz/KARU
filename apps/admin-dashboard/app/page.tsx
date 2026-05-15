@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { createActivityLogAction } from "@/app/actions/activity-log.actions";
 // import Image from "next/image"; // Used standard img for now because of external URL
 
 export default function LoginPage() {
@@ -31,6 +32,15 @@ export default function LoginPage() {
     if (error) {
       setErrorMsg(error.message || "Username atau password salah");
     } else {
+      // Catat log aktivitas login berhasil
+      await createActivityLogAction({
+        type: "auth",
+        action: "Login Pengguna",
+        description: `Pengguna berhasil melakukan autentikasi dan masuk ke dasbor.`,
+        userName: email,
+        userRole: "Administrator",
+      }).catch(() => {});
+
       router.push("/dashboard");
     }
   };

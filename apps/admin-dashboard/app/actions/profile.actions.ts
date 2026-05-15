@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
 import { auth } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
+import { logActivity } from '@/lib/activity-logger';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { writeFile, mkdir } from 'fs/promises';
@@ -57,6 +58,14 @@ export async function updateProfile(data: { name: string; phone: string }) {
             .where(eq(user.id, session.user.id));
 
         revalidatePath('/dashboard/profile');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'update',
+            action: 'Pembaruan Profil',
+            description: `Pengguna memperbarui informasi profil (Nama/Telepon).`,
+        });
+
         return { success: true, message: 'Profil berhasil diperbarui.' };
     } catch (error: any) {
         return { success: false, message: error.message || 'Gagal memperbarui profil.' };
@@ -81,6 +90,13 @@ export async function changePassword(data: { currentPassword: string; newPasswor
                 newPassword: data.newPassword,
             },
             headers: await headers(),
+        });
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'auth',
+            action: 'Perubahan Password',
+            description: `Pengguna berhasil melakukan perubahan password akun.`,
         });
 
         return { success: true, message: 'Password berhasil diubah.' };
@@ -139,6 +155,14 @@ export async function uploadProfilePhoto(formData: FormData) {
 
         revalidatePath('/dashboard/profile');
         revalidatePath('/dashboard');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'update',
+            action: 'Unggah Foto Profil',
+            description: `Pengguna memperbarui foto profil mereka.`,
+        });
+
         return { success: true, message: 'Foto profil berhasil diperbarui.', imagePath: relativePath };
     } catch (error: any) {
         return { success: false, message: error.message || 'Gagal mengupload foto.' };

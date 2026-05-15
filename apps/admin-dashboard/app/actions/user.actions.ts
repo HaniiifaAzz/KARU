@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { user, account, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { logActivity } from '@/lib/activity-logger';
 import crypto from 'crypto';
 
 // 1. Get All Users
@@ -59,6 +60,14 @@ export async function createUser(data: any) {
         });
 
         revalidatePath('/dashboard/users-access');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'create',
+            action: 'Pembuatan Pengguna',
+            description: `Menambahkan pengguna baru "${data.name}" (${data.role}) ke dalam sistem.`,
+        });
+
         return { success: true, message: 'Pengguna berhasil dibuat.' };
     } catch (error: any) {
         // Email duplikat
@@ -82,6 +91,14 @@ export async function updateUser(id: string, data: any) {
             .where(eq(user.id, id));
 
         revalidatePath('/dashboard/users-access');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'update',
+            action: 'Pembaruan Pengguna',
+            description: `Memperbarui data profil/akses pengguna "${data.name}" (ID: ${id}).`,
+        });
+
         return { success: true, message: 'Data pengguna diperbarui.' };
     } catch (error: any) {
         return { success: false, message: error.message || 'Gagal memperbarui pengguna.' };
@@ -96,6 +113,14 @@ export async function toggleUserStatus(id: string, newStatus: string) {
             .where(eq(user.id, id));
 
         revalidatePath('/dashboard/users-access');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'update',
+            action: 'Perubahan Status Pengguna',
+            description: `Mengubah status akses pengguna ID #${id} menjadi "${newStatus}".`,
+        });
+
         return { success: true, message: `Status berhasil diubah menjadi ${newStatus}.` };
     } catch (error: any) {
         return { success: false, message: error.message || 'Gagal mengubah status.' };
@@ -118,6 +143,14 @@ export async function deleteUser(id: string) {
         console.log(`[deleteUser] Berhasil menghapus user ID: ${id}`);
 
         revalidatePath('/dashboard/users-access');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'delete',
+            action: 'Penghapusan Pengguna',
+            description: `Menghapus akun pengguna dengan ID #${id} beserta seluruh data sesi terkait.`,
+        });
+
         return { success: true, message: 'Pengguna dihapus.' };
     } catch (error: any) {
         console.error(`[deleteUser] Error saat menghapus user:`, error);
