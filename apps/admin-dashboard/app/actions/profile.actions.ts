@@ -7,8 +7,7 @@ import { eq } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-logger';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { getStorageService } from '@/lib/services/storage.factory';
 
 /** Ambil profil user yang sedang login dari sesi aktif */
 export async function getCurrentUserProfile() {
@@ -133,24 +132,21 @@ export async function uploadProfilePhoto(formData: FormData) {
             return { success: false, message: 'Ukuran file maksimal 2MB.' };
         }
 
-        // Buat direktori jika belum ada
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
-        await mkdir(uploadDir, { recursive: true });
-
         // Nama file unik
         const ext = file.name.split('.').pop() ?? 'jpg';
         const filename = `${session.user.id}-${Date.now()}.${ext}`;
-        const filePath = path.join(uploadDir, filename);
 
-        // Simpan file
+        // Konversi ke Buffer
         const buffer = Buffer.from(await file.arrayBuffer());
-        await writeFile(filePath, buffer);
 
-        // Simpan relative path ke DB (bukan URL penuh)
-        const relativePath = `/uploads/avatars/${filename}`;
+        // Upload via storage service
+        const storageService = getStorageService();
+        const imageUrl = await storageService.upload(buffer, filename, 'avatars');
+
+        // Simpan URL ke DB
         await db
             .update(user)
-            .set({ image: relativePath, updatedAt: new Date() })
+            .set({ image: imageUrl, updatedAt: new Date() })
             .where(eq(user.id, session.user.id));
 
         revalidatePath('/dashboard/profile');
@@ -163,7 +159,7 @@ export async function uploadProfilePhoto(formData: FormData) {
             description: `Pengguna memperbarui foto profil mereka.`,
         });
 
-        return { success: true, message: 'Foto profil berhasil diperbarui.', imagePath: relativePath };
+        return { success: true, message: 'Foto profil berhasil diperbarui.', imagePath: imageUrl };
     } catch (error: any) {
         return { success: false, message: error.message || 'Gagal mengupload foto.' };
     }

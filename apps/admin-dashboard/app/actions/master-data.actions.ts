@@ -3,34 +3,22 @@
 import { revalidatePath } from 'next/cache';
 import { MasterDataService } from '@/lib/services/master-data.service';
 import { logActivity } from '@/lib/activity-logger';
-import fs from 'fs';
-import path from 'path';
+import { getStorageService } from '@/lib/services/storage.factory';
 
 const service = new MasterDataService();
 
 /**
- * Utility untuk menyimpan file upload secara lokal.
- * Akan menyimpan ke public/uploads/master-data/...
+ * Utility untuk menyimpan file upload secara otomatis switch lokal/supabase.
  */
-async function saveMediaLocally(file: File, folder: string): Promise<string> {
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  // Buat direktori jika belum ada
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'master-data', folder);
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
+async function saveMedia(file: File, folder: string): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const storageService = getStorageService();
+  
   // Generate nama file unik
   const extension = file.name.split('.').pop() || 'jpg';
   const fileName = `${Date.now()}-${Math.round(Math.random() * 1000)}.${extension}`;
-  const filePath = path.join(uploadDir, fileName);
-
-  fs.writeFileSync(filePath, buffer);
-
-  // Return URL relatif yang bisa diakses dari browser
-  return `/uploads/master-data/${folder}/${fileName}`;
+  
+  return await storageService.upload(buffer, fileName, `master-data/${folder}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,7 +41,7 @@ export async function savePlantAction(formData: FormData) {
     let fotoUrl = formData.get('fotoUrl') as string | null;
 
     if (fotoFile && fotoFile.size > 0) {
-      fotoUrl = await saveMediaLocally(fotoFile, 'tanaman');
+      fotoUrl = await saveMedia(fotoFile, 'tanaman');
     }
 
     // Relasi (Hama/Penyakit)
@@ -144,7 +132,7 @@ export async function savePestAction(formData: FormData) {
     let fotoUrl = formData.get('fotoUrl') as string | null;
 
     if (fotoFile && fotoFile.size > 0) {
-      fotoUrl = await saveMediaLocally(fotoFile, 'hama-penyakit');
+      fotoUrl = await saveMedia(fotoFile, 'hama-penyakit');
     }
 
     // Relasi (Tanaman Inang)

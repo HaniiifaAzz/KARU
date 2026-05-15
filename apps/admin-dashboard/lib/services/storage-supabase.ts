@@ -6,7 +6,7 @@ import type { IStorageService } from './storage.service';
  * Menyimpan file ke Supabase Storage bucket untuk production.
  */
 export class SupabaseStorageService implements IStorageService {
-  private bucket = 'scans';
+  private bucket = process.env.SUPABASE_BUCKET || 'karu-uploads';
   private supabase;
 
   constructor() {
@@ -22,10 +22,12 @@ export class SupabaseStorageService implements IStorageService {
     this.supabase = createClient(url, key);
   }
 
-  async upload(file: Buffer, fileName: string): Promise<string> {
+  async upload(file: Buffer, fileName: string, folder: string = 'general'): Promise<string> {
+    const fullPath = `${folder}/${fileName}`;
+
     const { error } = await this.supabase.storage
       .from(this.bucket)
-      .upload(fileName, file, {
+      .upload(fullPath, file, {
         contentType: 'image/jpeg',
         upsert: true,
       });
@@ -36,10 +38,11 @@ export class SupabaseStorageService implements IStorageService {
 
     const { data } = this.supabase.storage
       .from(this.bucket)
-      .getPublicUrl(fileName);
+      .getPublicUrl(fullPath);
 
     return data.publicUrl;
   }
+
 
   async delete(filePath: string): Promise<void> {
     // Extract filename dari URL publik

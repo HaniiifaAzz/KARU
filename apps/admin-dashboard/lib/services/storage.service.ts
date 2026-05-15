@@ -7,9 +7,10 @@ export interface IStorageService {
    * Upload file dan kembalikan URL publik.
    * @param file - Buffer dari file yang diupload
    * @param fileName - Nama file yang akan disimpan
+   * @param folder - Folder atau kategori penyimpanan (default: 'general')
    * @returns URL publik file
    */
-  upload(file: Buffer, fileName: string): Promise<string>;
+  upload(file: Buffer, fileName: string, folder?: string): Promise<string>;
 
   /**
    * Hapus file berdasarkan path/URL.

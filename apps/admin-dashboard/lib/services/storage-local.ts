@@ -7,14 +7,18 @@ import type { IStorageService } from './storage.service';
  * Menyimpan file ke /public/uploads/scans/ untuk development lokal.
  */
 export class LocalStorageService implements IStorageService {
-  private uploadDir = path.join(process.cwd(), 'public', 'uploads', 'scans');
+  private baseDir = path.join(process.cwd(), 'public', 'uploads');
 
-  async upload(file: Buffer, fileName: string): Promise<string> {
-    await fs.mkdir(this.uploadDir, { recursive: true });
-    const filePath = path.join(this.uploadDir, fileName);
+  async upload(file: Buffer, fileName: string, folder: string = 'general'): Promise<string> {
+    const targetDir = path.join(this.baseDir, folder);
+    await fs.mkdir(targetDir, { recursive: true });
+    
+    const filePath = path.join(targetDir, fileName);
     await fs.writeFile(filePath, file);
-    return `/uploads/scans/${fileName}`;
+    
+    return `/uploads/${folder}/${fileName}`;
   }
+
 
   async delete(filePath: string): Promise<void> {
     const fullPath = path.join(process.cwd(), 'public', filePath);
