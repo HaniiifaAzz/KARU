@@ -10,13 +10,21 @@ export class SupabaseStorageService implements IStorageService {
   private supabase;
 
   constructor() {
-    const url = process.env.SUPABASE_URL;
+    let url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_KEY;
 
     if (!url || !key) {
       throw new Error(
         'SUPABASE_URL dan SUPABASE_SERVICE_KEY harus diisi di .env untuk storage Supabase.'
       );
+    }
+
+    // Bersihkan URL dari path rest/v1/ yang sering tidak sengaja tercopy dari Supabase API Settings
+    // karena supabase-js createClient hanya membutuhkan base URL project.
+    if (url.endsWith('/rest/v1/')) {
+      url = url.replace('/rest/v1/', '');
+    } else if (url.endsWith('/rest/v1')) {
+      url = url.replace('/rest/v1', '');
     }
 
     this.supabase = createClient(url, key);
