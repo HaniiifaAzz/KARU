@@ -30,6 +30,7 @@ export async function createWorkspaceAction(
     priority?: string;
     areaInfo?: string;
     image?: string;
+    assignedUserId?: string;
   },
   geojsonPolygon: any
 ) {
@@ -50,6 +51,7 @@ export async function createWorkspaceAction(
       priority: data.priority,
       areaInfo: data.areaInfo,
       image: data.image,
+      assignedUserId: data.assignedUserId,
     });
 
     // 2. Process and save Geofence WKT to PostGIS (jika ada polygon digambar)
@@ -81,6 +83,7 @@ export async function updateWorkspaceAction(
     status?: string;
     priority?: string;
     image?: string;
+    assignedUserId?: string;
   }
 ) {
   try {

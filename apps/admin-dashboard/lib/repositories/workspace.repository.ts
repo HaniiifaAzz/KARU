@@ -1,27 +1,58 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { geofences, workspaces } from '../db/schema';
+import { geofences, workspaces, user } from '../db/schema';
 
 export class WorkspaceRepository {
   /**
-   * Menemukan semua data Workspace
+   * Menemukan semua data Workspace dengan data tim yang di-assign
    */
   async findAllWorkspaces() {
-    return await db.select().from(workspaces);
+    return await db.select({
+      id: workspaces.id,
+      name: workspaces.name,
+      category: workspaces.category,
+      status: workspaces.status,
+      priority: workspaces.priority,
+      description: workspaces.description,
+      areaInfo: workspaces.areaInfo,
+      image: workspaces.image,
+      createdAt: workspaces.createdAt,
+      assignedUserId: workspaces.assignedUserId,
+      assignedUserName: user.name,
+      assignedUserImage: user.image,
+    })
+    .from(workspaces)
+    .leftJoin(user, eq(workspaces.assignedUserId, user.id));
   }
 
   /**
    * Menemukan ruang kerja berdasar ID
    */
   async findWorkspaceById(id: string) {
-    const result = await db.select().from(workspaces).where(eq(workspaces.id, id));
+    const result = await db.select({
+      id: workspaces.id,
+      name: workspaces.name,
+      category: workspaces.category,
+      status: workspaces.status,
+      priority: workspaces.priority,
+      description: workspaces.description,
+      areaInfo: workspaces.areaInfo,
+      image: workspaces.image,
+      createdAt: workspaces.createdAt,
+      assignedUserId: workspaces.assignedUserId,
+      assignedUserName: user.name,
+      assignedUserImage: user.image,
+    })
+    .from(workspaces)
+    .leftJoin(user, eq(workspaces.assignedUserId, user.id))
+    .where(eq(workspaces.id, id));
     return result.length ? result[0] : null;
   }
 
   /**
    * Membuat Workspace Baru
    */
-  async createWorkspace(data: { id: string, name: string, category?: string, status?: string, priority?: string, description?: string, areaInfo?: string, image?: string }) {
+  async createWorkspace(data: { id: string, name: string, category?: string, status?: string, priority?: string, description?: string, areaInfo?: string, image?: string, assignedUserId?: string }) {
     await db.insert(workspaces).values(data);
     return data.id;
   }
@@ -40,7 +71,7 @@ export class WorkspaceRepository {
   /**
    * Memperbarui data Workspace berdasarkan ID
    */
-  async updateWorkspace(id: string, data: { name?: string, description?: string, status?: string, priority?: string, image?: string }) {
+  async updateWorkspace(id: string, data: { name?: string, description?: string, status?: string, priority?: string, image?: string, assignedUserId?: string }) {
     await db.update(workspaces).set(data).where(eq(workspaces.id, id));
   }
 

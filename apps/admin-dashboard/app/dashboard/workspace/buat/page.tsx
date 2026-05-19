@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createWorkspaceAction } from '@/app/actions/workspace.actions';
+import { getUsers } from '@/app/actions/user.actions';
 
 const DrawableMap = dynamic(() => import('@/components/DrawableMapComponent'), {
   ssr: false,
@@ -74,6 +75,17 @@ export default function BuatWorkspacePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const [users, setUsers] = useState<any[]>([]);
+  useEffect(() => {
+    async function loadUsers() {
+      const res = await getUsers();
+      if (res.success && res.data) {
+        setUsers(res.data.filter((u: any) => u.role === 'operator' || u.role === 'pengguna'));
+      }
+    }
+    loadUsers();
+  }, []);
+
   const [formData, setFormData] = useState({
     namaZona: '',
     deskripsi: '',
@@ -129,7 +141,8 @@ export default function BuatWorkspacePage() {
         status,
         priority,
         areaInfo: drawnArea ? `${drawnArea < 1 ? (drawnArea * 10000).toFixed(0) + ' m²' : drawnArea.toFixed(2) + ' Ha'}` : '',
-        image: coverImage || undefined
+        image: coverImage || undefined,
+        assignedUserId: formData.anggota || undefined,
       }, geojsonData);
 
       if (result.success) {
@@ -322,11 +335,20 @@ export default function BuatWorkspacePage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-500 pl-1">Assign Tim</label>
-                <input
-                  type="text" name="anggota" value={formData.anggota} onChange={handleInput}
-                  placeholder="Cari anggota..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all"
-                />
+                <div className="relative">
+                  <select
+                    name="anggota"
+                    value={formData.anggota}
+                    onChange={handleInput}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none"
+                  >
+                    <option value="">Pilih Anggota Tim</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                </div>
               </div>
             </div>
           </section>

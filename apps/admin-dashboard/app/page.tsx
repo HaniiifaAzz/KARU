@@ -32,14 +32,8 @@ export default function LoginPage() {
     if (error) {
       setErrorMsg(error.message || "Username atau password salah");
     } else {
-      // Catat log aktivitas login berhasil
-      await createActivityLogAction({
-        type: "auth",
-        action: "Login Pengguna",
-        description: `Pengguna berhasil melakukan autentikasi dan masuk ke dasbor.`,
-        userName: email,
-        userRole: "Administrator",
-      }).catch(() => {});
+      // Log aktivitas sudah dicatat secara otomatis melalui hook Better Auth
+
 
       router.push("/dashboard");
     }

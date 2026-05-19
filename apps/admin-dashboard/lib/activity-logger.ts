@@ -38,6 +38,13 @@ export async function logActivity({
 
     const headerList = await headers();
     const ipAddress = headerList.get('x-forwarded-for') || '127.0.0.1';
+    const finalIpAddress = typeof ipAddress === 'string' ? ipAddress.split(',')[0] : '127.0.0.1';
+
+    // Cek duplikasi log berdasarkan action dan IP dalam 1 menit terakhir
+    const isDuplicate = await activityLogRepo.findRecentSimilarLog(action, finalIpAddress);
+    if (isDuplicate) {
+      return; // Skip logging jika sudah ada aksi yang sama dari IP yang sama baru-baru ini
+    }
 
     await activityLogRepo.create({
       type,
@@ -46,7 +53,7 @@ export async function logActivity({
       userId: finalUserId,
       userName: finalUserName,
       userRole: finalUserRole,
-      ipAddress: typeof ipAddress === 'string' ? ipAddress.split(',')[0] : '127.0.0.1',
+      ipAddress: finalIpAddress,
     });
   } catch (error) {
     console.error('Failed to log activity:', error);

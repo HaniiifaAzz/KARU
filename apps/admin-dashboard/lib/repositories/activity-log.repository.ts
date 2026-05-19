@@ -1,4 +1,4 @@
-import { desc, ilike, or, and, eq } from 'drizzle-orm';
+import { desc, ilike, or, and, eq, gte } from 'drizzle-orm';
 import { db } from '../db';
 import { activityLogs } from '../db/schema';
 
@@ -11,6 +11,26 @@ export class ActivityLogRepository {
   async create(data: ActivityLogInsert) {
     const [result] = await db.insert(activityLogs).values(data).returning();
     return result;
+  }
+
+  /**
+   * Mencari log yang mirip dalam 1 menit terakhir berdasarkan action dan IP Address
+   */
+  async findRecentSimilarLog(action: string, ipAddress: string) {
+    const oneMinuteAgo = new Date(Date.now() - 60000);
+    const results = await db
+      .select()
+      .from(activityLogs)
+      .where(
+        and(
+          eq(activityLogs.action, action),
+          eq(activityLogs.ipAddress, ipAddress),
+          gte(activityLogs.createdAt, oneMinuteAgo)
+        )
+      )
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(1);
+    return results[0] || null;
   }
 
   /**

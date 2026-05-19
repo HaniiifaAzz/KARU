@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getWorkspacesAction, deleteWorkspaceAction, updateWorkspaceAction } from '@/app/actions/workspace.actions';
 import { getAllBatchesAction } from '@/app/actions/qr-node.actions';
+import { getUsers } from '@/app/actions/user.actions';
 
 // ── Type dari database ─────────────────────────────────────────────────────────
 type WorkspaceItem = {
@@ -17,6 +18,9 @@ type WorkspaceItem = {
     description: string | null;
     areaInfo: string | null;
     createdAt: Date | null;
+    assignedUserId?: string | null;
+    assignedUserName?: string | null;
+    assignedUserImage?: string | null;
 };
 
 // ── Badge helpers ──────────────────────────────────────────────────────────────
@@ -84,7 +88,7 @@ function DeleteDialog({ name, onConfirm, onCancel, loading }: { name: string; on
 // ── Detail Drawer ──────────────────────────────────────────────────────────────
 function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem; onClose: () => void; onDeleted: (id: string) => void; onUpdated: (u: WorkspaceItem) => void }) {
     const [mode, setMode] = useState<'view' | 'edit'>('view');
-    const [form, setForm] = useState({ name: ws.name, description: ws.description ?? '', status: ws.status ?? 'Aktif', priority: ws.priority ?? 'Normal' });
+    const [form, setForm] = useState({ name: ws.name, description: ws.description ?? '', status: ws.status ?? 'Aktif', priority: ws.priority ?? 'Normal', assignedUserId: ws.assignedUserId ?? '' });
     const [coverImage, setCoverImage] = useState<string | null>(ws.image);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -95,18 +99,28 @@ function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem
     // State Node Terdaftar
     const [wsBatches, setWsBatches] = useState<any[]>([]);
     const [isLoadingNodes, setIsLoadingNodes] = useState(true);
+    
+    // State Users
+    const [users, setUsers] = useState<any[]>([]);
 
     useEffect(() => {
-        async function fetchNodes() {
+        async function fetchNodesAndUsers() {
             setIsLoadingNodes(true);
-            const r = await getAllBatchesAction();
-            if (r.success) {
-                const all = r.data as any[];
+            const [rBatches, rUsers] = await Promise.all([
+                getAllBatchesAction(),
+                getUsers()
+            ]);
+            
+            if (rBatches.success) {
+                const all = rBatches.data as any[];
                 setWsBatches(all.filter(b => b.workspaceId === ws.id));
+            }
+            if (rUsers.success) {
+                setUsers((rUsers.data as any[]).filter(u => u.role === 'operator' || u.role === 'pengguna'));
             }
             setIsLoadingNodes(false);
         }
-        fetchNodes();
+        fetchNodesAndUsers();
     }, [ws.id]);
 
     const handleImageFile = (file: File) => {
@@ -128,11 +142,33 @@ function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem
     };
 
     const handleSave = async () => {
-        setIsSaving(true); setError('');
-        const r = await updateWorkspaceAction(ws.id, { ...form, image: coverImage || undefined });
-        setIsSaving(false);
-        if (r.success) { onUpdated({ ...ws, ...form, image: coverImage }); setMode('view'); }
-        else setError(r.error ?? 'Gagal menyimpan');
+        setIsSaving(true); 
+        setError('');
+        try {
+            const r = await updateWorkspaceAction(ws.id, { ...form, image: coverImage || undefined });
+            if (r.success) { 
+                // Cari nama dan gambar user baru jika di-assign
+                let newAssignedName = ws.assignedUserName;
+                let newAssignedImage = ws.assignedUserImage;
+                if (form.assignedUserId && form.assignedUserId !== ws.assignedUserId) {
+                    const foundUser = users.find(u => u.id === form.assignedUserId);
+                    if (foundUser) {
+                        newAssignedName = foundUser.name;
+                        newAssignedImage = foundUser.image;
+                    }
+                }
+                
+                onUpdated({ ...ws, ...form, image: coverImage, assignedUserName: newAssignedName, assignedUserImage: newAssignedImage }); 
+                setMode('view');
+                alert('Ruang kerja berhasil diperbarui!');
+            } else {
+                setError(r.error ?? 'Gagal menyimpan');
+            }
+        } catch (e: any) {
+            setError(e.message ?? 'Terjadi kesalahan jaringan atau ukuran file terlalu besar.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const createdLabel = ws.createdAt
@@ -199,6 +235,20 @@ function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem
                         </div>
                     ))}
                 </div>
+
+                {/* Team Info */}
+                <section>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Tim yang Ditugaskan</p>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-4">
+                        <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
+                            {ws.assignedUserImage ? <img src={ws.assignedUserImage} alt={ws.assignedUserName ?? 'Tim'} className="w-full h-full rounded-full object-cover" /> : (ws.assignedUserName?.charAt(0).toUpperCase() ?? <span className="material-symbols-outlined text-[20px]">person</span>)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-700 truncate">{ws.assignedUserName || 'Belum Ada Tim'}</p>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">Penanggung Jawab Lahan</p>
+                        </div>
+                    </div>
+                </section>
 
                 {/* Description */}
                 <section>
@@ -304,6 +354,18 @@ function DetailDrawer({ ws, onClose, onDeleted, onUpdated }: { ws: WorkspaceItem
                 <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi</label>
                     <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all resize-none" />
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assign Tim</label>
+                    <div className="relative">
+                        <select value={form.assignedUserId} onChange={e => setForm(p => ({ ...p, assignedUserId: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 appearance-none">
+                            <option value="">Pilih Anggota Tim</option>
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                            ))}
+                        </select>
+                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                    </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -463,21 +525,30 @@ export default function WorkspacePage() {
                             </div>
 
                             {/* Card Body */}
-                            <div className="p-6 flex flex-col flex-grow">
-                                <h3 className="text-xl font-manrope font-extrabold text-primary mb-2">{ws.name}</h3>
-                                <div className="flex items-center gap-2 mb-4">
+                            <div className="p-5 flex flex-col flex-grow">
+                                <h3 className="text-lg font-manrope font-extrabold text-primary mb-2 line-clamp-1">{ws.name}</h3>
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
                                     <StatusBadge status={ws.status} />
                                     <PriorityBadge priority={ws.priority} />
                                 </div>
-                                <p className="text-sm text-on-surface-variant line-clamp-2 mb-6 font-medium leading-relaxed">{ws.description ?? 'Belum ada deskripsi.'}</p>
-                                <div className="mt-auto pt-5 border-t border-surface-container flex items-center justify-between">
+                                <p className="text-[13px] text-on-surface-variant line-clamp-2 mb-4 font-medium leading-relaxed flex-grow">{ws.description ?? 'Belum ada deskripsi.'}</p>
+                                
+                                {/* Assigned Team Info */}
+                                <div className="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
+                                        {ws.assignedUserImage ? <img src={ws.assignedUserImage} alt="Avatar" className="w-full h-full rounded-full object-cover" /> : (ws.assignedUserName?.charAt(0).toUpperCase() ?? <span className="material-symbols-outlined text-[14px]">person</span>)}
+                                    </div>
+                                    <span className="text-[11px] font-semibold text-slate-600 truncate">{ws.assignedUserName || 'Belum ditugaskan'}</span>
+                                </div>
+
+                                <div className="mt-auto pt-4 border-t border-surface-container flex items-center justify-between">
                                     <p className="text-[10px] text-slate-400 font-medium">
                                         {ws.createdAt ? new Date(ws.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
                                     </p>
                                     <button type="button" onClick={() => setSelectedWs(ws)}
-                                        className="text-sm font-bold text-primary hover:text-emerald-600 transition-colors flex items-center gap-1 group/btn px-2 py-1 rounded-lg hover:bg-emerald-50">
+                                        className="text-xs font-bold text-primary hover:text-emerald-600 transition-colors flex items-center gap-1 group/btn px-2 py-1 rounded-lg hover:bg-emerald-50">
                                         Lihat Detail
-                                        <span className="material-symbols-outlined text-[18px] group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
+                                        <span className="material-symbols-outlined text-[16px] group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
                                     </button>
                                 </div>
                             </div>

@@ -127,6 +127,7 @@ export const workspaces = pgTable('workspaces', {
   description: text('description'),
   areaInfo: varchar('area_info', { length: 100 }),
   image: text('image'),
+  assignedUserId: text('assigned_user_id').references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
