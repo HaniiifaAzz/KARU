@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KARU - Masuk ke Dashboard",
+  title: "KARU",
   description: "Your Intelligent Green Eye - Sistem pemantauan presisi untuk masa depan ekologi yang lebih cerdas dan lestari.",
 };
 
