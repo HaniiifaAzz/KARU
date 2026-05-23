@@ -522,7 +522,7 @@ export default function KamusTanamanPage() {
             <option value="semua">Semua Kategori</option>
             {KATEGORI_OPTS.map(k => <option key={k}>{k}</option>)}
           </select>
-          <span className="material-symbols absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+          <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
         </div>
 
         {/* Risiko filter */}
