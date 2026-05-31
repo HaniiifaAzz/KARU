@@ -26,10 +26,16 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const initials = userName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
   const [isDataMasterOpen, setIsDataMasterOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [timeString, setTimeString] = useState('');
   const [systemSettings, setSystemSettings] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      setIsSidebarOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     async function loadSettings() {
@@ -45,6 +51,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (pathname.includes('/data-master')) {
       setIsDataMasterOpen(true);
+    }
+    // Auto-close sidebar on mobile when navigating
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
     }
   }, [pathname]);
 
@@ -114,6 +124,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background text-on-surface font-body overflow-hidden">
+
+      {/* ── Mobile Overlay ── */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* ── Sidebar ── */}
       <aside
@@ -241,7 +259,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content area ── */}
-      <div className={`flex-1 flex flex-col h-screen transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'} bg-surface overflow-hidden`}>
+      <div className={`flex-1 flex flex-col h-screen transition-all duration-300 ${isSidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'} bg-surface overflow-hidden`}>
 
         {/* ── Top Navbar ── */}
         <header className="flex-shrink-0 relative z-40 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-white/40 flex justify-between items-center h-16 px-8 shadow-sm">

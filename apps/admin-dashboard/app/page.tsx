@@ -97,16 +97,16 @@ export default function LoginPage() {
           <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Username Input */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-primary/80 ml-1" htmlFor="email">Username</label>
+              <label className="block text-xs font-semibold text-primary/80 ml-1" htmlFor="email">Email</label>
               <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-secondary transition-colors text-xl">person</span>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-secondary transition-colors text-xl">mail</span>
                 <input
                   id="email"
-                  type="text"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="masukkan username"
+                  placeholder="masukkan email"
                   className="w-full pl-11 pr-4 py-3 bg-surface-container-low border-none rounded-xl text-on-surface text-sm focus:ring-2 focus:ring-surface-tint focus:ring-offset-0 transition-all placeholder:text-outline-variant"
                 />
               </div>

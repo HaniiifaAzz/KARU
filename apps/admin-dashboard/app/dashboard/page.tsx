@@ -117,7 +117,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Metric Cards Seragam dengan gaya premium sistem */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Ruang Kerja */}
         <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50">
@@ -227,7 +227,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Legend Distribusi */}
-              <div className="grid grid-cols-3 gap-2 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-100/60 text-center">
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
@@ -383,7 +383,7 @@ export default function DashboardPage() {
             type="button"
             disabled={isGeneratingAi}
             onClick={handleGenerateAiInsight}
-            className="px-6 py-3 bg-white hover:bg-emerald-50 text-emerald-950 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-80 flex-shrink-0 whitespace-nowrap"
+            className="w-full lg:w-auto justify-center px-6 py-3 bg-white hover:bg-emerald-50 text-emerald-950 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-80 flex-shrink-0 whitespace-nowrap"
           >
             <span className={`material-symbols-outlined text-[16px] text-emerald-700 ${isGeneratingAi ? 'animate-spin' : ''}`}>
               {isGeneratingAi ? 'autorenew' : 'psychology'}
