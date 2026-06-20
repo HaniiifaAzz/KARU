@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 
-import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus } from '@/app/actions/user.actions';
+import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus, resetUserPassword } from '@/app/actions/user.actions';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type RoleType = 'admin' | 'operator' | 'pengguna';
@@ -401,7 +401,7 @@ function UserDrawer({
               {drawerMode === 'edit' && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex items-start gap-2">
                   <span className="material-symbols-outlined text-amber-500 text-[18px] flex-shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
-                  <p className="text-xs text-amber-800 font-semibold">Untuk mengubah password, gunakan fitur Reset Password yang terpisah.</p>
+                  <p className="text-xs text-amber-800 font-semibold">Untuk mengubah password, gunakan tombol kunci (Reset Password) di menu aksi tabel.</p>
                 </div>
               )}
             </>
@@ -539,6 +539,61 @@ function ToggleStatusDialog({ user, onConfirm, onCancel }: { user: User; onConfi
   );
 }
 
+// ── Reset Password Dialog ──────────────────────────────────────────────────────
+function ResetPasswordDialog({ user, onConfirm, onCancel, loading }: { user: User; onConfirm: (pwd: string) => void; onCancel: () => void; loading?: boolean }) {
+  const [pwd, setPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    if (pwd.length < 6) return setError('Password minimal 6 karakter');
+    if (pwd !== confirmPwd) return setError('Password tidak cocok');
+    onConfirm(pwd);
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[3px] z-[60]" onClick={loading ? undefined : onCancel} />
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" style={{ animation: 'scaleIn 0.18s ease-out' }}>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-amber-600 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>lock_reset</span>
+            </div>
+            <div>
+              <h3 className="font-manrope font-extrabold text-primary text-base">Reset Password</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Setel ulang password untuk {user.name}.</p>
+            </div>
+          </div>
+          
+          <div className="space-y-3 mb-5">
+            <div className="relative">
+              <input type={show ? 'text' : 'password'} value={pwd} onChange={e => {setPwd(e.target.value); setError('');}} placeholder="Password Baru (min 6)" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm focus:border-amber-400 outline-none transition-all" disabled={loading} />
+            </div>
+            <div className="relative">
+              <input type={show ? 'text' : 'password'} value={confirmPwd} onChange={e => {setConfirmPwd(e.target.value); setError('');}} placeholder="Konfirmasi Password Baru" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm focus:border-amber-400 outline-none transition-all" disabled={loading} />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-500 mt-1 cursor-pointer">
+              <input type="checkbox" checked={show} onChange={e => setShow(e.target.checked)} disabled={loading} /> Tampilkan Password
+            </label>
+            {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
+          </div>
+
+          <div className="flex gap-3">
+            <button type="button" onClick={onCancel} disabled={loading} className="flex-1 py-2.5 border-2 border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-50">Batal</button>
+            <button type="button" onClick={handleSubmit} disabled={loading} className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors shadow-md disabled:opacity-70 flex items-center justify-center gap-2">
+              {loading ? (
+                <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>Menyimpan...</>
+              ) : 'Simpan'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Halaman Utama ──────────────────────────────────────────────────────────────
 export default function UsersAccessPage() {
   const [users, setUsers] = useState<User[]>(INIT_USERS);
@@ -573,6 +628,8 @@ export default function UsersAccessPage() {
   const [drawerState, setDrawerState] = useState<{ open: boolean; mode: DrawerMode; user: User | null }>({ open: false, mode: 'add', user: null });
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [toggleTarget, setToggleTarget] = useState<User | null>(null);
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -648,6 +705,19 @@ export default function UsersAccessPage() {
       alert(res.message);
     }
     setToggleTarget(null);
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resetTarget) return;
+    setIsResetting(true);
+    const res = await resetUserPassword(resetTarget.id, newPassword);
+    setIsResetting(false);
+    if (!res.success) {
+      alert(res.message || 'Gagal mereset password.');
+    } else {
+      alert('Password berhasil direset.');
+      setResetTarget(null);
+    }
   };
 
   return (
@@ -823,6 +893,18 @@ export default function UsersAccessPage() {
                           <span className="material-symbols-outlined text-[17px]">info</span>
                         </button>
 
+                        {/* Reset Password */}
+                        {!user.isPermanent && (
+                          <button
+                            type="button"
+                            onClick={() => setResetTarget(user)}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-transparent hover:border-amber-100"
+                            title="Reset Password"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">key</span>
+                          </button>
+                        )}
+
                         {/* Edit */}
                         {!user.isPermanent && (
                           <button
@@ -940,6 +1022,14 @@ export default function UsersAccessPage() {
       {/* Toggle Status Dialog */}
       {toggleTarget && (
         <ToggleStatusDialog user={toggleTarget} onConfirm={handleToggleStatus} onCancel={() => setToggleTarget(null)} />
+      )}
+      {resetTarget && (
+        <ResetPasswordDialog
+          user={resetTarget}
+          onConfirm={handleResetPassword}
+          onCancel={() => setResetTarget(null)}
+          loading={isResetting}
+        />
       )}
     </div>
   );

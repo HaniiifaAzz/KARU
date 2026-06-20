@@ -24,6 +24,24 @@ export async function getAllBatchesAction() {
 }
 
 /**
+ * Mendapatkan detail sebuah batch beserta seluruh node di dalamnya
+ */
+export async function getBatchWithNodesAction(batchId: string) {
+  try {
+    const batches = await qrNodeRepo.getAllBatches();
+    const batchInfo = batches.find(b => b.id === batchId);
+    if (!batchInfo) {
+      return { success: false, error: 'Batch tidak ditemukan.' };
+    }
+    const nodes = await qrNodeRepo.getNodesByBatch(batchId);
+    return { success: true, batch: batchInfo, nodes };
+  } catch (error: any) {
+    console.error('Error fetching batch with nodes:', error);
+    return { success: false, error: error.message || 'Gagal memuat detail batch.' };
+  }
+}
+
+/**
  * Membuat batch baru dan men-generate QR nodes-nya
  */
 export async function createBatchAction(data: {

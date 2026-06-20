@@ -9,6 +9,8 @@ import {
   updateBatchStatusAction
 } from '@/app/actions/qr-node.actions';
 import { getWorkspacesAction } from '@/app/actions/workspace.actions';
+import { QRCodeSVG } from 'qrcode.react';
+import PrintModal from './PrintModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type BatchItem = {
@@ -29,12 +31,7 @@ type WorkspaceOpt = {
   name: string;
 };
 
-const QR_IMAGES = [
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBsMqpcH76Sznl3sot8zBTHI5d7yrHlJGVeNOCtGYGYyp52b6Gpnna8BJG8c-dLgx0RNdYMVfe_kdXGfiNJEjdOlNpegiIDmS907XNEHjFEgjnFJgFZ1gXV6TCcrKKJm-L_NICFuaUbpftuTHvvLoDSWD6F_udGbdLcjP3EOFou-8s1-dJNXcn3v1nj7nsy4O0KYCXZUR8DFAv6xVvFs9LcafOpQwVLkvMf7C7_OiF7Qk6sUAYW8SNX_2zqtSrD5n6xCQlko2M-7lnP',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCnUdU0VnCnknBZq2zgpULlE96IacrkPR3lm5gZVz6116wsOe1RT6TO7LpvONTmchePrqVMbKWiyS6gePEm9IsfVZVUrLcsOvhVZV399sWLAih4TjtNwjlEbArenV-A19PCai6mHoXi5sj5bZHRPbnARzu7gqQYg0nIhZ9Ekk1ZDLojWEraJtaIjWJcGe9ZLei3FUM-0n5rPZlpiEfBQXyggey2ymF3R2AcJRy3GKjAjqMwrg-pX8k_2BiiFsXKJoIvFVzRQvEJR_mp',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDK0OFMkgFVbwovbN2bBC8JAkt1zK0_pkc0m49HuqgvrsuAq7mxgLR9mo64K9i1EHE-46YFTxJNg-gm4q3VRoCCAXyHJK4iMkf7bDEPm4A8k0vvG3GUBgWGij28r76Z29mVBZGnujzgD6O0hdtQ3pxmYf_nixqfAQQ9NNvs-32dTQp34QI6O6ftxC3U_ykoX0WMbSBeu9jTuz8z9hZ3EdMDNEp4E6i0fenImr1rfyjG4My6ju4nyIkzGNyJNlYiH7SajU6NIFZrsM_P',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDevMffxmghueM9rh9UPHCnR40jWmBBwO1Z0xazeoVkn4T5_AUbVnTKNy7NM3vrLbh3bLLP62gQcYf0oSOJgeBqhzclEDDD6ynf7q6LQFTZs0oVHRFWjRNQKx6xsrIN4AlCTcKBYPn-gUBJu4TW-JUVVynvBqiH2OASlv1cMYi855qXhRUprvyzffrgCxFfNyyMctrv1gikLqYCzio7BPuJrYblkuPmZz5Ep0nNj47J2QZRheBXV8cYADGjHfSOXOZ1xbK4LSLYYWTd',
-];
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function StatusPill({ status }: { status: string | null }) {
@@ -140,9 +137,10 @@ export default function QRNodePage() {
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // State Konfirmasi Hapus
+  // State Konfirmasi Hapus & Print Modal
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [printBatchId, setPrintBatchId] = useState<string | null>(null);
 
   // Load Data
   const loadData = useCallback(async () => {
@@ -258,6 +256,24 @@ export default function QRNodePage() {
       setBatches(p =>
         p.map(b => (b.id === batchId ? { ...b, status: nextStatus } : b))
       );
+    }
+  };
+
+  // Handler Print PDF / OS Print
+  const handlePrint = async (batchId: string) => {
+    // Tampilkan modal print
+    setPrintBatchId(batchId);
+  };
+
+  // Callback setelah selesai print/download untuk merubah status otomatis
+  const handleOnPrinted = async () => {
+    if (!printBatchId) return;
+    const batch = batches.find(b => b.id === printBatchId);
+    if (batch && batch.status?.toLowerCase() !== 'dicetak') {
+      const res = await updateBatchStatusAction(printBatchId, 'Dicetak');
+      if (res.success) {
+        setBatches(p => p.map(b => (b.id === printBatchId ? { ...b, status: 'Dicetak' } : b)));
+      }
     }
   };
 
@@ -502,8 +518,8 @@ export default function QRNodePage() {
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
-                              onClick={() => handleToggleStatus(batch.id, batch.status)}
-                              title="Tandai Dicetak / Belum"
+                              onClick={() => handlePrint(batch.id)}
+                              title="Cetak & Download PDF"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                             >
                               <span className="material-symbols-outlined text-[18px]">print</span>
@@ -736,10 +752,10 @@ export default function QRNodePage() {
                         className="flex flex-col items-center gap-2 p-3 bg-white border border-slate-200/80 rounded-xl shadow-sm hover:border-emerald-300 transition-colors"
                       >
                         <div className="w-full aspect-square bg-slate-50 p-2 border border-slate-100 rounded-lg flex items-center justify-center">
-                          <img
-                            alt={`QR ${node.id}`}
-                            className="w-full h-full object-cover contrast-125 mix-blend-multiply"
-                            src={QR_IMAGES[i % QR_IMAGES.length]}
+                          <QRCodeSVG
+                            value={`KARU:NODE:${node.id}`}
+                            size={100}
+                            className="w-full h-full"
                           />
                         </div>
                         <div className="text-center w-full min-w-0">
@@ -784,6 +800,15 @@ export default function QRNodePage() {
           loading={isDeleting}
           onConfirm={handleConfirmDelete}
           onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {/* Print & Download Modal */}
+      {printBatchId && (
+        <PrintModal 
+          batchId={printBatchId} 
+          onClose={() => setPrintBatchId(null)} 
+          onPrinted={handleOnPrinted}
         />
       )}
       <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>

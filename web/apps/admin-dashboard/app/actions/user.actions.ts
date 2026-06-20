@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { user, account, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-logger';
+import { hashPassword } from 'better-auth/crypto';
 import crypto from 'crypto';
 
 // 1. Get All Users
@@ -17,21 +18,14 @@ export async function getUsers() {
     }
 }
 
-// Helper: Hash password using scrypt (same format as Better Auth)
-async function hashPassword(password: string): Promise<string> {
-    const salt = crypto.randomBytes(16).toString('hex');
-    return new Promise((resolve, reject) => {
-        crypto.scrypt(password, salt, 32, (err, derivedKey) => {
-            if (err) reject(err);
-            resolve(`${derivedKey.toString('hex')}:${salt}`);
-        });
-    });
-}
+// Helper: Hash password using better-auth/crypto
+// We use hashPassword directly from better-auth to ensure compatibility
+// with their internal password verification.
 
 // 2. Create User
 export async function createUser(data: any) {
     try {
-        const userId = crypto.randomBytes(16).toString('base64url').substring(0, 32);
+        const userId = crypto.randomUUID().replace(/-/g, '').substring(0, 32);
         const now = new Date();
 
         // Insert ke tabel user
@@ -50,7 +44,7 @@ export async function createUser(data: any) {
         // Insert ke tabel account dengan password ter-hash (format Better Auth compatible)
         const hashedPassword = await hashPassword(data.password);
         await db.insert(account).values({
-            id: crypto.randomBytes(16).toString('base64url').substring(0, 32),
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 32),
             accountId: userId,
             providerId: 'credential',
             userId: userId,
@@ -157,3 +151,35 @@ export async function deleteUser(id: string) {
         return { success: false, message: error.message || 'Gagal menghapus pengguna.' };
     }
 }
+
+// 6. Reset User Password
+export async function resetUserPassword(id: string, newPassword: string) {
+    try {
+        const hashedPassword = await hashPassword(newPassword);
+        
+        // Update password di tabel account
+        await db.update(account)
+            .set({ password: hashedPassword })
+            .where(eq(account.userId, id));
+
+        // Invalidate session for security so they must log in again with new password
+        await db.delete(session).where(eq(session.userId, id));
+
+        // Dapatkan info user untuk log
+        const [foundUser] = await db.select().from(user).where(eq(user.id, id)).limit(1);
+
+        revalidatePath('/dashboard/users-access');
+
+        // Catat Log Aktivitas
+        await logActivity({
+            type: 'update',
+            action: 'Reset Password',
+            description: `Admin melakukan reset password untuk pengguna "${foundUser?.name || id}".`,
+        });
+
+        return { success: true, message: 'Password berhasil direset.' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Gagal mereset password.' };
+    }
+}
+
