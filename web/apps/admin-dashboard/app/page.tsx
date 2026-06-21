@@ -88,9 +88,9 @@ export default function LoginPage() {
             <h3 className="font-headline text-2xl font-bold text-primary mb-2">Selamat Datang</h3>
             <p className="text-on-surface-variant font-medium text-sm">Silakan masuk untuk mengakses panel kendali presisi Anda.</p>
             {errorMsg && (
-                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 text-sm font-medium">
-                  {errorMsg}
-                </div>
+              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 text-sm font-medium">
+                {errorMsg}
+              </div>
             )}
           </header>
 

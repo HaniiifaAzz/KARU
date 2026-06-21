@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { saveSopAction, deleteSopAction, getSopsAction } from '@/app/actions/master-data.actions';
+import { generateSopStepsAction } from '@/app/actions/ai-sop.actions';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type KategoriSOP = 'Pengendalian Hama' | 'Pengendalian Penyakit' | 'Darurat & Mitigasi' | 'Teknis & Perawatan' | 'Preventif';
@@ -153,6 +154,35 @@ function SOPDrawer({ mode, sop, availablePlants, availablePests, onClose, onSave
     sop ? { judul: sop.judul, kategori: sop.kategori, urgensi: sop.urgensi, penyakitHamaTerkait: sop.penyakitHamaTerkait, tanamanTarget: sop.tanamanTarget, langkah: sop.langkah, pdfUrl: sop.pdfUrl } : { ...EMPTY_FORM, langkah: [''] }
   );
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(mode);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateAI = async () => {
+    if (!form.judul) {
+      alert("Silakan isi Judul SOP terlebih dahulu sebelum men-generate langkah.");
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const res = await generateSopStepsAction({
+        judul: form.judul,
+        kategori: form.kategori,
+        tanaman: form.tanamanTarget.map(t => t.nama),
+        penyakitHama: form.penyakitHamaTerkait.map(p => p.nama),
+      });
+
+      if (res.success && res.data) {
+        setForm(prev => ({ ...prev, langkah: res.data }));
+      } else {
+        alert(res.error || "Gagal menghasilkan langkah-langkah AI.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan saat memanggil AI.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -287,15 +317,21 @@ function SOPDrawer({ mode, sop, availablePlants, availablePests, onClose, onSave
           {/* ADD / EDIT MODE */}
           {isEditable && (
             <>
-              {/* AI placeholder banner */}
-              <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+              {/* AI Generation Banner */}
+              <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-violet-500 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
-                  <p className="text-xs font-semibold text-violet-800">Generate langkah-langkah dengan AI</p>
+                  <span className={`material-symbols-outlined text-violet-500 text-[18px] ${isGenerating ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {isGenerating ? 'autorenew' : 'smart_toy'}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-violet-800">Generate langkah-langkah dengan AI</p>
+                    <p className="text-[10px] text-violet-600 mt-0.5 leading-tight max-w-xs">Isi judul dan relasi target, lalu klik tombol ini untuk membuat draf langkah otomatis.</p>
+                  </div>
                 </div>
-                <button type="button" disabled
-                  className="px-3 py-1.5 bg-violet-200 text-violet-500 text-[11px] font-bold rounded-lg cursor-not-allowed uppercase tracking-wide">
-                  Segera Hadir
+                <button type="button" onClick={handleGenerateAI} disabled={isGenerating || !form.judul}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 disabled:cursor-not-allowed text-white text-[11px] font-bold rounded-lg uppercase tracking-wide transition-colors shadow-sm">
+                  <span className="material-symbols-outlined text-[14px]">magic_button</span>
+                  {isGenerating ? 'Memproses...' : 'Generate Draf'}
                 </button>
               </div>
 

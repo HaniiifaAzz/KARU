@@ -60,6 +60,7 @@
   .text-shadow-md {
     text-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   }
+
   .no-line-card {
     box-shadow: 0 10px 30px -15px rgba(1, 45, 29, 0.05);
   }
@@ -75,4 +76,3 @@
 select.appearance-none {
   background-image: none !important;
 }
-
