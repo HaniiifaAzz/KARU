@@ -84,6 +84,7 @@ function TanamanDrawer({
   );
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(mode);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -95,6 +96,35 @@ function TanamanDrawer({
       if (exists) return { ...prev, hama: prev.hama.filter(p => p.id !== pestId) };
       return { ...prev, hama: [...prev.hama, { id: pestId, nama: pestName }] };
     });
+  };
+
+  const handleGenerateAI = async () => {
+    if (!form.namaLokal) return;
+    setIsGeneratingAI(true);
+    try {
+      const { generatePlantInfoAction } = await import('@/app/actions/ai-sop.actions');
+      const res = await generatePlantInfoAction(form.namaLokal);
+      if (res.success && res.data) {
+        setForm(prev => ({
+          ...prev,
+          namaIlmiah: res.data.namaIlmiah || prev.namaIlmiah,
+          siklusPanen: res.data.siklusPanen || prev.siklusPanen,
+          deskripsi: res.data.deskripsi || prev.deskripsi,
+        }));
+      } else {
+        alert('Gagal menghasilkan data AI: ' + res.error);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const handleBlurNamaLokal = () => {
+    if (drawerMode === 'add' && form.namaLokal && !form.namaIlmiah && !form.deskripsi) {
+      handleGenerateAI();
+    }
   };
 
   const handleSave = () => {
@@ -165,14 +195,23 @@ function TanamanDrawer({
           {isEditable ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Lokal</label>
-                <input type="text" name="namaLokal" value={form.namaLokal} onChange={handleInput}
-                  placeholder="cth. Padi" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Lokal</label>
+                  {form.namaLokal && (
+                    <button type="button" onClick={handleGenerateAI} disabled={isGeneratingAI}
+                      className="text-[10px] font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-2 py-0.5 rounded-md flex items-center gap-1 hover:shadow-md transition-all disabled:opacity-50">
+                      <span className={`material-symbols-outlined text-[12px] ${isGeneratingAI ? 'animate-spin' : ''}`}>{isGeneratingAI ? 'sync' : 'auto_awesome'}</span>
+                      {isGeneratingAI ? 'Generating...' : 'AI Autofill'}
+                    </button>
+                  )}
+                </div>
+                <input type="text" name="namaLokal" value={form.namaLokal} onChange={handleInput} onBlur={handleBlurNamaLokal} disabled={isGeneratingAI}
+                  placeholder="cth. Padi" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all disabled:opacity-70" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Ilmiah</label>
-                <input type="text" name="namaIlmiah" value={form.namaIlmiah} onChange={handleInput}
-                  placeholder="cth. Oryza sativa" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium italic text-slate-700 placeholder:text-slate-300 placeholder:not-italic focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+                <input type="text" name="namaIlmiah" value={form.namaIlmiah} onChange={handleInput} disabled={isGeneratingAI}
+                  placeholder="cth. Oryza sativa" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium italic text-slate-700 placeholder:text-slate-300 placeholder:not-italic focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all disabled:opacity-70" />
               </div>
             </div>
           ) : (
@@ -216,9 +255,9 @@ function TanamanDrawer({
           {isEditable ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Siklus Panen</label>
-                <input type="text" name="siklusPanen" value={form.siklusPanen} onChange={handleInput}
-                  placeholder="cth. 3–4 Bulan" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Durasi Panen / Keterangan</label>
+                <input type="text" name="siklusPanen" value={form.siklusPanen} onChange={handleInput} disabled={isGeneratingAI}
+                  placeholder="cth. 3-4 Bulan / Tanaman Hias" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all disabled:opacity-70" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Habitat / Lokasi Tanam</label>
@@ -229,7 +268,7 @@ function TanamanDrawer({
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 mb-1">Siklus Panen</p>
+                <p className="text-[10px] font-bold text-slate-400 mb-1">Durasi Panen / Keterangan</p>
                 <p className="text-sm font-bold text-slate-700">{form.siklusPanen}</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -243,8 +282,8 @@ function TanamanDrawer({
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi</label>
             {isEditable ? (
-              <textarea name="deskripsi" value={form.deskripsi} onChange={handleInput} rows={3}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
+              <textarea name="deskripsi" value={form.deskripsi} onChange={handleInput} rows={3} disabled={isGeneratingAI}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none disabled:opacity-70" />
             ) : (
               <p className="text-sm text-slate-600 leading-relaxed font-medium">{form.deskripsi}</p>
             )}
@@ -547,7 +586,6 @@ export default function KamusTanamanPage() {
                 <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Foto</th>
                 <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nama Tanaman</th>
                 <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kategori</th>
-                <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Siklus Panen</th>
                 <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Risiko Penyakit</th>
                 <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hama / Penyakit Utama</th>
                 <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Aksi</th>
@@ -577,9 +615,6 @@ export default function KamusTanamanPage() {
                     <p className="text-xs italic text-slate-400 mt-0.5">{t.namaIlmiah}</p>
                   </td>
                   <td className="px-4 py-4"><KategoriBadge k={t.kategori} /></td>
-                  <td className="px-4 py-4">
-                    <span className="text-sm font-semibold text-slate-700">{t.siklusPanen}</span>
-                  </td>
                   <td className="px-4 py-4"><RisikoBadge r={t.risikoPenyakit} /></td>
                   <td className="px-4 py-4 max-w-[200px]">
                     <div className="flex flex-wrap gap-1">

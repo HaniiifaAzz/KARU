@@ -91,9 +91,40 @@ function EntriDrawer({
   );
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(mode);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleGenerateAI = async () => {
+    if (!form.nama) return;
+    setIsGeneratingAI(true);
+    try {
+      const { generatePestInfoAction } = await import('@/app/actions/ai-sop.actions');
+      const res = await generatePestInfoAction(form.nama, KATEGORI_OPTS);
+      if (res.success && res.data) {
+        setForm(prev => ({
+          ...prev,
+          namaIlmiah: res.data.namaIlmiah || prev.namaIlmiah,
+          kategori: res.data.kategori || prev.kategori,
+          gejala: res.data.gejala || prev.gejala,
+          penanganan: res.data.penanganan || prev.penanganan,
+        }));
+      } else {
+        alert('Gagal menghasilkan data AI: ' + res.error);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const handleBlurNama = () => {
+    if (drawerMode === 'add' && form.nama && !form.namaIlmiah && !form.gejala) {
+      handleGenerateAI();
+    }
   };
 
   const handleSave = () => {
@@ -168,14 +199,23 @@ function EntriDrawer({
           {isEditable ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Umum</label>
-                <input type="text" name="nama" value={form.nama} onChange={handleInput}
-                  placeholder="cth. Blas" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Umum</label>
+                  {form.nama && (
+                    <button type="button" onClick={handleGenerateAI} disabled={isGeneratingAI}
+                      className="text-[10px] font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-2 py-0.5 rounded-md flex items-center gap-1 hover:shadow-md transition-all disabled:opacity-50">
+                      <span className={`material-symbols-outlined text-[12px] ${isGeneratingAI ? 'animate-spin' : ''}`}>{isGeneratingAI ? 'sync' : 'auto_awesome'}</span>
+                      {isGeneratingAI ? 'Generating...' : 'AI Autofill'}
+                    </button>
+                  )}
+                </div>
+                <input type="text" name="nama" value={form.nama} onChange={handleInput} onBlur={handleBlurNama} disabled={isGeneratingAI}
+                  placeholder="cth. Blas" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all disabled:opacity-70" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Ilmiah</label>
-                <input type="text" name="namaIlmiah" value={form.namaIlmiah} onChange={handleInput}
-                  placeholder="cth. Pyricularia oryzae" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium italic text-slate-700 placeholder:text-slate-300 placeholder:not-italic focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+                <input type="text" name="namaIlmiah" value={form.namaIlmiah} onChange={handleInput} disabled={isGeneratingAI}
+                  placeholder="cth. Pyricularia oryzae" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium italic text-slate-700 placeholder:text-slate-300 placeholder:not-italic focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all disabled:opacity-70" />
               </div>
             </div>
           ) : (
@@ -197,8 +237,8 @@ function EntriDrawer({
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jenis Entri</label>
                   <div className="relative">
-                    <select name="jenis" value={form.jenis} onChange={handleInput}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none">
+                    <select name="jenis" value={form.jenis} onChange={handleInput} disabled={isGeneratingAI}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none disabled:opacity-70">
                       {JENIS_OPTS.map(j => <option key={j}>{j}</option>)}
                     </select>
                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
@@ -207,8 +247,8 @@ function EntriDrawer({
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tingkat Risiko</label>
                   <div className="relative">
-                    <select name="tingkatRisiko" value={form.tingkatRisiko} onChange={handleInput}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none">
+                    <select name="tingkatRisiko" value={form.tingkatRisiko} onChange={handleInput} disabled={isGeneratingAI}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none disabled:opacity-70">
                       {RISIKO_OPTS.map(r => <option key={r}>{r}</option>)}
                     </select>
                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
@@ -219,8 +259,8 @@ function EntriDrawer({
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori Ilmiah</label>
                 <div className="relative">
-                  <select name="kategori" value={form.kategori} onChange={handleInput}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none">
+                  <select name="kategori" value={form.kategori} onChange={handleInput} disabled={isGeneratingAI}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all appearance-none disabled:opacity-70">
                     {KATEGORI_OPTS.map(k => <option key={k}>{k}</option>)}
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
@@ -249,12 +289,12 @@ function EntriDrawer({
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[14px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
-              Gejala Serangan
+              Ciri Ciri (yang terlihat)
             </label>
             {isEditable ? (
-              <textarea name="gejala" value={form.gejala} onChange={handleInput} rows={3}
-                placeholder="Deskripsikan gejala yang terlihat pada tanaman..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
+              <textarea name="gejala" value={form.gejala} onChange={handleInput} rows={3} disabled={isGeneratingAI}
+                placeholder="Deskripsikan ciri-ciri yang terlihat pada tanaman..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none disabled:opacity-70" />
             ) : (
               <p className="text-sm text-slate-600 leading-relaxed font-medium bg-amber-50/60 border border-amber-100 rounded-xl p-4">{form.gejala}</p>
             )}
@@ -267,9 +307,9 @@ function EntriDrawer({
               Cara Pengendalian
             </label>
             {isEditable ? (
-              <textarea name="penanganan" value={form.penanganan} onChange={handleInput} rows={3}
+              <textarea name="penanganan" value={form.penanganan} onChange={handleInput} rows={3} disabled={isGeneratingAI}
                 placeholder="Cara pengendalian dan pencegahan yang direkomendasikan..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none disabled:opacity-70" />
             ) : (
               <p className="text-sm text-slate-600 leading-relaxed font-medium bg-blue-50/60 border border-blue-100 rounded-xl p-4">{form.penanganan}</p>
             )}
