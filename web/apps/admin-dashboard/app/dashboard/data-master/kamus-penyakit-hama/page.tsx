@@ -61,7 +61,7 @@ function RisikoBadge({ r }: { r: TingkatRisiko }) {
     'Sedang': { cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
     'Rendah': { cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
   };
-  const { cls, dot } = map[r];
+  const { cls, dot } = map[r] || map['Sedang'];
   return (
     <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />

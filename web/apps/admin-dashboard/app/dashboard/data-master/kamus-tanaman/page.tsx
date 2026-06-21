@@ -40,8 +40,8 @@ function KategoriBadge({ k }: { k: Kategori }) {
     'Hias': 'bg-purple-100 text-purple-800',
   };
   return (
-    <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${map[k]}`}>
-      {k}
+    <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${map[k] || 'bg-slate-100 text-slate-800'}`}>
+      {k || 'Lainnya'}
     </span>
   );
 }
@@ -52,7 +52,7 @@ function RisikoBadge({ r }: { r: RisikoPenyakit }) {
     'Sedang': { cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
     'Rendah': { cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
   };
-  const { cls, dot } = map[r];
+  const { cls, dot } = map[r] || map['Sedang'];
   return (
     <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
