@@ -2,8 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { getDashboardSummaryAction, generateAiDashboardInsightAction } from '@/app/actions/dashboard.actions';
+import dynamic from 'next/dynamic';
+import { getDashboardSummaryAction, getDashboardMapDataAction, generateAiDashboardInsightAction } from '@/app/actions/dashboard.actions';
 import { getRecentActivityLogsAction } from '@/app/actions/activity-log.actions';
+import type { MapWorkspace } from '@/components/DashboardMapComponent';
+
+// Lazy-load peta (Leaflet tidak support SSR)
+const DashboardMap = dynamic(() => import('@/components/DashboardMapComponent'), { ssr: false });
 
 export default function DashboardPage() {
   // State Metrik Dasbor
@@ -18,6 +23,10 @@ export default function DashboardPage() {
   });
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
 
+  // State Peta Workspace
+  const [mapWorkspaces, setMapWorkspaces] = useState<MapWorkspace[]>([]);
+  const [isLoadingMap, setIsLoadingMap] = useState(true);
+
   // State Aktivitas Terbaru
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
@@ -30,11 +39,13 @@ export default function DashboardPage() {
   const loadDashboardData = useCallback(async () => {
     setIsLoadingMetrics(true);
     setIsLoadingLogs(true);
+    setIsLoadingMap(true);
 
     try {
-      const [metricsRes, logsRes] = await Promise.all([
+      const [metricsRes, logsRes, mapRes] = await Promise.all([
         getDashboardSummaryAction(),
         getRecentActivityLogsAction(5),
+        getDashboardMapDataAction(),
       ]);
 
       if (metricsRes.success && metricsRes.data) {
@@ -43,11 +54,15 @@ export default function DashboardPage() {
       if (logsRes.success && logsRes.data) {
         setRecentLogs(logsRes.data as any[]);
       }
+      if (mapRes.success && mapRes.data) {
+        setMapWorkspaces(mapRes.data as MapWorkspace[]);
+      }
     } catch (err) {
       console.error('Gagal memuat dasbor umum:', err);
     } finally {
       setIsLoadingMetrics(false);
       setIsLoadingLogs(false);
+      setIsLoadingMap(false);
     }
   }, []);
 
@@ -73,7 +88,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Kalkulasi total pindaian untuk persentase distribusi
+  // Kalkulasi distribusi
   const totalDist = summary.distribution.penyakit + summary.distribution.hama + summary.distribution.sehat;
   const pPenyakit = totalDist > 0 ? Math.round((summary.distribution.penyakit / totalDist) * 100) : 45;
   const pHama = totalDist > 0 ? Math.round((summary.distribution.hama / totalDist) * 100) : 30;
@@ -84,14 +99,17 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-8 pb-16 space-y-8 max-w-[1600px] mx-auto w-full">
-      {/* Header Section */}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          1. HEADER
+      ══════════════════════════════════════════════════════════════════════ */}
       <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-outline-variant/10 pb-6">
         <div>
           <h1 className="text-3xl font-manrope font-extrabold text-primary tracking-tight font-headline">
             Dasbor Utama KARU
           </h1>
           <p className="text-slate-500 font-medium mt-1 text-sm md:text-base">
-            Metrik operasional waktu nyata, distribusi pindaian biometrik, dan kendali penasihat AI otonom.
+            Metrik operasional waktu nyata, peta zona lahan, distribusi pindaian, dan kendali penasihat AI otonom.
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -116,7 +134,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Metric Cards Seragam dengan gaya premium sistem */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          2. METRIC CARDS
+      ══════════════════════════════════════════════════════════════════════ */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Ruang Kerja */}
         <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
@@ -186,7 +206,50 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Middle Section: Asymmetric Layout (Analitik Kiri, Aktivitas Kanan) */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          3. PETA ZONA INTERAKTIF (BARU)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Header Peta */}
+        <div className="p-6 md:p-8 pb-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div>
+            <div className="flex items-center gap-2.5 mb-1">
+              <span className="material-symbols-outlined text-emerald-600 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                map
+              </span>
+              <h2 className="text-lg font-bold text-primary font-headline">Peta Zona & Monitoring Lahan</h2>
+            </div>
+            <p className="text-xs text-slate-400 font-medium max-w-2xl">
+              Visualisasi spasial seluruh ruang kerja terdaftar. Klik zona untuk melihat ringkasan statistik, informasi area, dan status monitoring.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/workspace"
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-colors flex-shrink-0"
+          >
+            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+            Kelola Workspace
+          </Link>
+        </div>
+
+        {/* Peta */}
+        <div className="p-4 md:px-8 md:pb-8 pt-4">
+          <div className="w-full h-[480px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
+            {isLoadingMap ? (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                <span className="material-symbols-outlined animate-spin text-4xl text-emerald-500">refresh</span>
+                <p className="text-xs font-bold text-slate-400">Memuat peta zona...</p>
+              </div>
+            ) : (
+              <DashboardMap workspaces={mapWorkspaces} />
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          4. DISTRIBUSI & TREN + AKTIVITAS (Grid 2+1)
+      ══════════════════════════════════════════════════════════════════════ */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bagian Kiri: Distribusi & Tren Pindaian AI (2 Kolom) */}
         <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
@@ -267,16 +330,13 @@ export default function DashboardPage() {
                   const heightPercent = maxTrend > 0 ? Math.max(12, Math.round((item.count / maxTrend) * 100)) : 12;
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group h-full justify-end">
-                      {/* Nilai Tooltip hover di atas bar */}
                       <span className="text-[9px] font-bold text-slate-400 group-hover:text-primary transition-colors">
                         {item.count}
                       </span>
-                      {/* Bar grafik murni CSS */}
                       <div
                         style={{ height: `${heightPercent}%` }}
                         className="w-full max-w-[28px] bg-emerald-100 group-hover:bg-primary rounded-t-lg transition-all duration-300 relative"
                       />
-                      {/* Label Hari */}
                       <span className="text-[10px] font-bold text-slate-500 uppercase mt-1">
                         {item.day}
                       </span>
@@ -316,7 +376,6 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-4">
                 {recentLogs.map((log) => {
-                  // Tentukan warna ikon berdasarkan tipe
                   let bg = 'bg-slate-100 text-slate-600';
                   let icon = 'info';
                   if (log.type === 'create') { bg = 'bg-emerald-100 text-emerald-700'; icon = 'add_circle'; }
@@ -362,7 +421,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Bottom Section: Pusat Insight AI Eksekutif berbasis Gemini */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          5. PUSAT INSIGHT AI EKSEKUTIF
+      ══════════════════════════════════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 p-6 md:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
         {/* Efek latar belakang dekoratif */}
         <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
@@ -419,12 +480,33 @@ export default function DashboardPage() {
           ) : (
             <div className="bg-black/20 rounded-2xl p-6 text-center border border-white/5">
               <p className="text-xs text-emerald-200/70 font-medium">
-                Tekan tombol <strong>"Hasilkan Rekomendasi AI"</strong> di atas untuk menyarikan panduan operasional kebun Anda saat ini.
+                Tekan tombol <strong>&quot;Hasilkan Rekomendasi AI&quot;</strong> di atas untuk menyarikan panduan operasional kebun Anda saat ini.
               </p>
             </div>
           )}
         </div>
       </section>
+
+      {/* ── Custom styles untuk tooltip peta ───────────────────────────────── */}
+      <style>{`
+        .dashboard-map-tooltip {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        .dashboard-map-popup .leaflet-popup-content-wrapper {
+          border-radius: 16px !important;
+          padding: 4px !important;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.18) !important;
+        }
+        .dashboard-map-popup .leaflet-popup-content {
+          margin: 12px 14px !important;
+        }
+        .dashboard-map-popup .leaflet-popup-tip {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+      `}</style>
     </div>
   );
 }

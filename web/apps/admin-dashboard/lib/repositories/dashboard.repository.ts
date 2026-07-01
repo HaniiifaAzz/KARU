@@ -1,8 +1,75 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { workspaces, qrNodes, aiScanLogs, pestsDiseases, sops } from '../db/schema';
+import { workspaces, qrNodes, qrBatches, aiScanLogs, pestsDiseases, sops, geofences } from '../db/schema';
 
 export class DashboardRepository {
+  /**
+   * Mengambil seluruh workspace beserta polygon geofence (GeoJSON) dan statistik per-zona
+   * untuk ditampilkan di peta interaktif dashboard
+   */
+  async getWorkspacesWithGeofences() {
+    // 1. Ambil semua workspace
+    const allWs = await db.select().from(workspaces);
+
+    // 2. Ambil semua geofence polygon sebagai GeoJSON
+    const geoRows = await db
+      .select({
+        workspaceId: geofences.workspaceId,
+        geojson: sql<string>`ST_AsGeoJSON(${geofences.polygonInfo}::geometry)`,
+      })
+      .from(geofences);
+
+    // Map workspace_id → geojson string
+    const geoMap: Record<string, string> = {};
+    for (const row of geoRows) {
+      if (row.workspaceId) geoMap[row.workspaceId] = row.geojson;
+    }
+
+    // 3. Hitung scan per workspace
+    const scanCounts = await db
+      .select({
+        workspaceId: aiScanLogs.workspaceId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(aiScanLogs)
+      .groupBy(aiScanLogs.workspaceId);
+
+    const scanMap: Record<string, number> = {};
+    for (const row of scanCounts) {
+      if (row.workspaceId) scanMap[row.workspaceId] = row.count;
+    }
+
+    // 4. Hitung node aktif (Online) per workspace melalui qr_batches
+    const nodeCountRows = await db
+      .select({
+        workspaceId: qrBatches.workspaceId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(qrNodes)
+      .innerJoin(qrBatches, eq(qrNodes.batchId, qrBatches.id))
+      .where(eq(qrNodes.status, 'Online'))
+      .groupBy(qrBatches.workspaceId);
+
+    const nodeMap: Record<string, number> = {};
+    for (const row of nodeCountRows) {
+      if (row.workspaceId) nodeMap[row.workspaceId] = row.count;
+    }
+
+    // 5. Gabungkan semua data
+    return allWs.map(ws => ({
+      id: ws.id,
+      name: ws.name,
+      category: ws.category,
+      status: ws.status,
+      priority: ws.priority,
+      description: ws.description,
+      areaInfo: ws.areaInfo,
+      geojson: geoMap[ws.id] || null,  // GeoJSON string polygon, null jika belum ada
+      scanCount: scanMap[ws.id] || 0,
+      activeNodes: nodeMap[ws.id] || 0,
+    }));
+  }
+
   /**
    * Mengambil kompilasi seluruh metrik dasbor umum
    */

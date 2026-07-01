@@ -20,6 +20,19 @@ export async function getDashboardSummaryAction() {
 }
 
 /**
+ * Mengambil data workspace beserta polygon geofence untuk peta dashboard
+ */
+export async function getDashboardMapDataAction() {
+  try {
+    const data = await dashboardRepo.getWorkspacesWithGeofences();
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Error fetching dashboard map data:', error);
+    return { success: false, error: error.message || 'Gagal memuat data peta.', data: [] };
+  }
+}
+
+/**
  * Meminta panduan/insight AI eksekutif dari Gemini berdasarkan data terkini
  */
 export async function generateAiDashboardInsightAction() {
