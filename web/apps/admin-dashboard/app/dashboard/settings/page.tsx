@@ -175,7 +175,7 @@ export default function SettingsPage() {
                     name="contactEmail"
                     value={settings.contactEmail || ''}
                     onChange={handleChange}
-                    placeholder="admin@sidekukis.com"
+                    placeholder="punyanyahanipa@gmail.com"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                   />
                 </div>
@@ -273,7 +273,7 @@ export default function SettingsPage() {
                     name="footerText"
                     value={settings.footerText || ''}
                     onChange={handleChange}
-                    placeholder="© 2024 Sidekukis - KARU System. All rights reserved."
+                    placeholder="© 2026 KARU System. All rights reserved."
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                   />
                 </div>
