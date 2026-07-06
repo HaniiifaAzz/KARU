@@ -148,21 +148,22 @@ export default function DrawableMapComponent({ category, onAreaDrawn }: Props) {
         {/* Pindahkan view ke lokasi nyata pengguna setelah geolocation selesai */}
         <RecenterMap position={userPosition} />
 
-        {/* === Tile Layer: Esri Satellite + OpenStreetMap Label Overlay ===
-             Foto satelit resolusi tinggi (Esri) +
-             Nama jalan & wilayah nyata dari OpenStreetMap */}
+        {/* === Tile Layer: Google Maps Satellite ===
+             Satelit dengan resolusi sangat tinggi dan zoom level dalam */}
         <TileLayer
-          attribution='Tiles &copy; Esri &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={20}
+          url="http://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+          attribution="&copy; Google Maps"
+          maxZoom={22}
+          maxNativeZoom={20}
         />
 
         {/* Label overlay: nama jalan, kota, tempat dari OpenStreetMap */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          opacity={0.55}
-          maxZoom={20}
+          opacity={0.45}
+          maxZoom={22}
+          maxNativeZoom={19}
         />
 
         {/* Drawing tools */}

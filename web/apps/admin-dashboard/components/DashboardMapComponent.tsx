@@ -103,18 +103,20 @@ export default function DashboardMapComponent({ workspaces }: { workspaces: MapW
         {/* Auto-fit ke semua polygon */}
         <FitBounds positions={allPositions} />
 
-        {/* Esri Satellite tiles */}
+        {/* Google Maps Satellite tiles */}
         <TileLayer
-          attribution='Tiles &copy; Esri'
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={20}
+          url="http://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+          attribution="&copy; Google Maps"
+          maxZoom={22}
+          maxNativeZoom={20}
         />
         {/* OSM Label overlay */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           opacity={0.45}
-          maxZoom={20}
+          maxZoom={22}
+          maxNativeZoom={19}
         />
 
         {/* Render semua polygon workspace */}
