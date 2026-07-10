@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<any>({});
-  const [activeTab, setActiveTab] = useState<'identitas' | 'branding' | 'preferensi'>('identitas');
+  const [activeTab, setActiveTab] = useState<'identitas' | 'branding' | 'preferensi' | 'mobile'>('identitas');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -132,6 +132,15 @@ export default function SettingsPage() {
             <span className="material-symbols-outlined">settings_suggest</span>
             Preferensi Global
           </button>
+          <button
+            onClick={() => setActiveTab('mobile')}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${
+              activeTab === 'mobile' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="material-symbols-outlined">smartphone</span>
+            Aplikasi Mobile
+          </button>
         </div>
 
         {/* Tab Panels */}
@@ -178,6 +187,44 @@ export default function SettingsPage() {
                     placeholder="punyanyahanipa@gmail.com"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'mobile' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="border-b border-slate-50 pb-4 mb-2">
+                <h3 className="text-lg font-bold text-slate-800">Aplikasi Mobile</h3>
+                <p className="text-xs text-slate-500">Pengaturan khusus untuk integrasi dengan aplikasi mobile KARU.</p>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="grid gap-2">
+                  <label className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">Nomor WhatsApp Admin (Lupa Password)</label>
+                  <input
+                    type="text"
+                    name="adminWhatsapp"
+                    value={settings.adminWhatsapp || ''}
+                    onChange={handleChange}
+                    placeholder="Contoh: 6281234567890"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                  />
+                  <p className="text-xs text-slate-400">Nomor ini akan dihubungi oleh pengguna mobile jika mereka lupa password.</p>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-700 mb-2">Banner &amp; Carousel Beranda</h4>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Kelola gambar dan informasi yang tampil di halaman beranda aplikasi mobile.
+                  </p>
+                  <a
+                    href="/dashboard/settings/banners"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">imagesmode</span>
+                    Kelola Banner Mobile
+                  </a>
                 </div>
               </div>
             </div>

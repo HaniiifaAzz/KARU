@@ -202,6 +202,36 @@ export const systemSettings = pgTable('system_settings', {
   faviconUrl: text('favicon_url'),
   footerText: text('footer_text'),
   contactEmail: varchar('contact_email', { length: 255 }),
+  adminWhatsapp: varchar('admin_whatsapp', { length: 50 }),
   maintenanceMode: boolean('maintenance_mode').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+/* =========================================================================
+   8. MOBILE APP CONTENT (Banners & Notifications)
+========================================================================= */
+export const mobileBanners = pgTable('mobile_banners', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  imageUrl: text('image_url').notNull(),
+  linkUrl: text('link_url'),
+  isActive: boolean('is_active').default(true),
+  displayOrder: integer('display_order').default(0),
+  durationMs: integer('duration_ms').default(5000),
+  createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  type: varchar('type', { length: 50 }).default('info'), // info, warning, success, scan_result
+  isRead: boolean('is_read').default(false),
+  referenceId: text('reference_id'),
+  referenceType: varchar('reference_type', { length: 50 }), // 'scan', 'workspace', 'system'
+  createdAt: timestamp('created_at').defaultNow(),
 });

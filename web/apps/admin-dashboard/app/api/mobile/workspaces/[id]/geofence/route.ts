@@ -1,0 +1,37 @@
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { geofences } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { getMobileUser } from '@/lib/auth/auth-guard';
+
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getMobileUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const geofence = await db
+      .select()
+      .from(geofences)
+      .where(eq(geofences.workspaceId, id))
+      .limit(1);
+
+    if (geofence.length === 0) {
+      return NextResponse.json({ success: false, error: 'Geofence not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: geofence[0]
+    });
+  } catch (error) {
+    console.error('Error fetching mobile workspace geofence:', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+  }
+}
