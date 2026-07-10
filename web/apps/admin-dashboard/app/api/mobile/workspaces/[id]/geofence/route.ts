@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'; // 1. Tambahkan NextRequest di sini
 import { db } from '@/lib/db';
 import { geofences } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getMobileUser } from '@/lib/auth/auth-guard';
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest, // 2. Ubah Request menjadi NextRequest
+  { params }: { params: Promise<{ id: string }> } // 3. Bungkus params ke dalam Promise
 ) {
   try {
     const user = await getMobileUser();
@@ -14,6 +14,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Ini sudah benar
     const { id } = await params;
 
     const geofence = await db
