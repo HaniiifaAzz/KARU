@@ -18,6 +18,7 @@ class KaruTheme {
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
+  static const Color outline = Color(0xFFE2E8F0);
 
   // ── Light Theme ───────────────────────────────────────────────
   static ThemeData get lightTheme {
