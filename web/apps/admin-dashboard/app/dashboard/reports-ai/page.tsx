@@ -690,25 +690,15 @@ export default function ReportsAIPage() {
 
                       {/* Hasil AI */}
                       <td className="px-6 py-4">
-                        <div className="flex items-start gap-1.5">
-                          <span
-                            className={`material-symbols-outlined text-[16px] flex-shrink-0 mt-0.5 ${
-                              isValid ? 'text-emerald-600' : 'text-amber-600'
-                            }`}
-                            style={{ fontVariationSettings: "'FILL' 1" }}
-                          >
-                            {isValid ? 'biotech' : 'warning'}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-extrabold text-slate-800 leading-tight truncate max-w-[200px]">
-                              {log.diagnosisResult || 'Tanpa Diagnosis'}
+                        <div className="min-w-0">
+                          <p className="font-extrabold text-slate-800 leading-tight truncate max-w-[200px]">
+                            {log.diagnosisResult || 'Tanpa Diagnosis'}
+                          </p>
+                          {log.probability && (
+                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                              Probabilitas: <strong className="text-slate-700">{log.probability}%</strong>
                             </p>
-                            {log.probability && (
-                              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                Probabilitas: <strong className="text-slate-700">{log.probability}%</strong>
-                              </p>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </td>
 

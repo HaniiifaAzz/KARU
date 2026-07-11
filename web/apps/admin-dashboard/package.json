@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx lib/db/seed.ts"
+    "db:seed": "tsx lib/db/seed.ts",
+    "db:seed-scans": "tsx lib/db/seed-scans.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
