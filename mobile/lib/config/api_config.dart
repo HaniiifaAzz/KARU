@@ -1,13 +1,6 @@
-import 'dart:io';
-
 class ApiConfig {
-  // Use 10.0.2.2 for Android Emulator to access localhost
-  // Use actual IP address for physical devices
-  static String get baseUrl {
-    // Production: gunakan URL Vercel
-    return 'https://karu-apps.vercel.app';
-    // Local dev (emulator): 'http://10.0.2.2:3000'
-  }
+  static const String baseUrl = 'https://karu-apps.vercel.app';
+  // Local dev: 'http://10.0.2.2:3000' (emulator) / 'http://192.168.x.x:3000' (device)
 
   // Endpoints
   static const String login = '/api/auth/sign-in/email'; // BetterAuth standard
