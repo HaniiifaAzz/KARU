@@ -4,10 +4,9 @@ class ApiConfig {
   // Use 10.0.2.2 for Android Emulator to access localhost
   // Use actual IP address for physical devices
   static String get baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000'; // Default Next.js port
-    }
-    return 'http://localhost:3000';
+    // Production: gunakan URL Vercel
+    return 'https://karu-apps.vercel.app';
+    // Local dev (emulator): 'http://10.0.2.2:3000'
   }
 
   // Endpoints
