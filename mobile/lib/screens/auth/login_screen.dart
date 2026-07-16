@@ -36,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await authProvider.login(
       _emailController.text.trim(),
       _passwordController.text,
+      rememberMe: _rememberMe,
     );
 
     if (success) {
@@ -65,18 +66,28 @@ class _LoginScreenState extends State<LoginScreen> {
     final api = ApiService();
     try {
       final res = await api.getWhatsappAdmin();
-      if (res.statusCode == 200 && res.data['success']) {
-        final waNumber = res.data['data']['whatsappNumber'];
-        if (waNumber != null && waNumber.toString().isNotEmpty) {
-          final message = 'Halo Admin KARU, saya lupa password akun mobile saya. Mohon bantuannya.';
-          final encodedMessage = Uri.encodeComponent(message);
-          final url = Uri.parse('https://wa.me/$waNumber?text=$encodedMessage');
+      if (res.statusCode == 200 && res.data['success'] == true) {
+        final waNumber = res.data['data']?['whatsappNumber'];
+        if (waNumber != null && waNumber.toString().trim().isNotEmpty) {
+          final rawNumber = waNumber.toString().replaceAll(RegExp(r'[^0-9]'), '');
+          // Auto-convert 08xxx → 62xxx (Indonesian local to international)
+          final cleanNumber = rawNumber.startsWith('0') ? '62${rawNumber.substring(1)}' : rawNumber;
+          final message = Uri.encodeComponent('Halo Admin KARU, saya lupa password akun mobile saya. Mohon bantuannya.');
+          final url = Uri.parse('https://wa.me/$cleanNumber?text=$message');
           
           if (await canLaunchUrl(url)) {
             await launchUrl(url, mode: LaunchMode.externalApplication);
-            setState(() => _isLoadingForgotPassword = false);
-            return;
+          } else {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Tidak dapat membuka WhatsApp. Pastikan WhatsApp terinstall.'),
+                backgroundColor: KaruTheme.error,
+              ),
+            );
           }
+          setState(() => _isLoadingForgotPassword = false);
+          return;
         }
       }
     } catch (e) {
@@ -88,9 +99,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Gagal menghubungi Admin. Silakan coba lagi nanti.'),
+        content: Text('Nomor admin belum tersedia. Silakan hubungi admin secara langsung.'),
         backgroundColor: KaruTheme.error,
-        duration: Duration(seconds: 3),
+        duration: Duration(seconds: 4),
       ),
     );
   }
