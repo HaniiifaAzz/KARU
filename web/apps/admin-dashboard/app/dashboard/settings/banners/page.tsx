@@ -70,6 +70,18 @@ export default function MobileBannersPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Format file tidak didukung. Gunakan JPEG, PNG, WebP, atau GIF.');
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`Ukuran file terlalu besar (maksimal 5MB). File Anda: ${(file.size / 1024 / 1024).toFixed(1)}MB.`);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
@@ -277,7 +289,7 @@ export default function MobileBannersPage() {
                           <label className="cursor-pointer bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors flex items-center gap-2">
                             <span className="material-symbols-outlined text-[18px]">upload</span>
                             Ganti Gambar
-                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageUpload} className="hidden" />
                           </label>
                         </div>
                       </div>
@@ -288,7 +300,7 @@ export default function MobileBannersPage() {
                           <label className="cursor-pointer bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors flex items-center gap-2">
                             <span className="material-symbols-outlined text-[18px]">upload</span>
                             Ganti Gambar
-                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageUpload} className="hidden" />
                           </label>
                         </div>
                       </div>
@@ -298,9 +310,24 @@ export default function MobileBannersPage() {
                       <span className="material-symbols-outlined text-4xl text-slate-300 group-hover:text-emerald-400 transition-colors mb-2">add_photo_alternate</span>
                       <span className="text-sm font-bold text-slate-500 group-hover:text-emerald-600 transition-colors">Pilih Gambar</span>
                       <span className="text-xs text-slate-400 mt-1">Rekomendasi rasio 16:9</span>
-                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageUpload} className="hidden" />
                     </label>
                   )}
+                  {/* Upload Requirements */}
+                  <div className="flex items-center gap-4 text-[11px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">image</span>
+                      Format: JPEG, PNG, WebP, GIF
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">sd_card</span>
+                      Maksimal: 5MB
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">aspect_ratio</span>
+                      Rasio: 16:9
+                    </span>
+                  </div>
                   {/* Manual URL Input Fallback */}
                   <div className="flex items-center gap-2">
                     <input

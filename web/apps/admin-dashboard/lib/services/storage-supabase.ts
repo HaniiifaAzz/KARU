@@ -33,10 +33,20 @@ export class SupabaseStorageService implements IStorageService {
   async upload(file: Buffer, fileName: string, folder: string = 'general'): Promise<string> {
     const fullPath = `${folder}/${fileName}`;
 
+    const ext = fileName.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mimeMap: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      gif: 'image/gif',
+    };
+    const contentType = mimeMap[ext] || 'image/jpeg';
+
     const { error } = await this.supabase.storage
       .from(this.bucket)
       .upload(fullPath, file, {
-        contentType: 'image/jpeg',
+        contentType,
         upsert: true,
       });
 
