@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getStorageService } from '@/lib/services/storage.factory';
+import { getMobileUser } from '@/lib/auth/auth-guard';
 
 /**
  * POST /api/mobile/upload
@@ -8,8 +9,14 @@ import { getStorageService } from '@/lib/services/storage.factory';
  */
 export async function POST(req: Request) {
   try {
+    const user = await getMobileUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
+    const folder = (formData.get('folder') as string) || 'scans';
 
     if (!file) {
       return NextResponse.json(
@@ -18,7 +25,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validasi tipe file
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
@@ -27,7 +33,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validasi ukuran (max 10MB)
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
@@ -36,14 +41,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Buat nama file unik
     const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
     const fileName = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Upload via storage service (lokal atau Supabase)
     const buffer = Buffer.from(await file.arrayBuffer());
     const storage = getStorageService();
-    const imageUrl = await storage.upload(buffer, fileName);
+    const imageUrl = await storage.upload(buffer, fileName, folder);
 
     return NextResponse.json(
       { success: true, imageUrl, fileName },
