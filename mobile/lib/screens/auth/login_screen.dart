@@ -20,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _isLoadingForgotPassword = false;
 
   @override
   void dispose() {
@@ -60,49 +59,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _handleForgotPassword() async {
-    setState(() => _isLoadingForgotPassword = true);
-    
-    final api = ApiService();
-    try {
-      final res = await api.getWhatsappAdmin();
-      if (res.statusCode == 200 && res.data['success'] == true) {
-        final waNumber = res.data['data']?['whatsappNumber'];
-        if (waNumber != null && waNumber.toString().trim().isNotEmpty) {
-          final rawNumber = waNumber.toString().replaceAll(RegExp(r'[^0-9]'), '');
-          // Auto-convert 08xxx → 62xxx (Indonesian local to international)
-          final cleanNumber = rawNumber.startsWith('0') ? '62${rawNumber.substring(1)}' : rawNumber;
-          final message = Uri.encodeComponent('Halo Admin KARU, saya lupa password akun mobile saya. Mohon bantuannya.');
-          final url = Uri.parse('https://wa.me/$cleanNumber?text=$message');
-          
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url, mode: LaunchMode.externalApplication);
-          } else {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Tidak dapat membuka WhatsApp. Pastikan WhatsApp terinstall.'),
-                backgroundColor: KaruTheme.error,
-              ),
-            );
-          }
-          setState(() => _isLoadingForgotPassword = false);
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error getting WhatsApp number: $e');
-    }
-    
-    setState(() => _isLoadingForgotPassword = false);
-    
+  void _handleForgotPassword() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Nomor admin belum tersedia. Silakan hubungi admin secara langsung.'),
-        backgroundColor: KaruTheme.error,
-        duration: Duration(seconds: 4),
-      ),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ForgotPasswordSheet(),
     );
   }
 
@@ -115,16 +78,14 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           // ══════════════════════════════════════════════════════════════
-          // TOP SECTION - Header with Background Image
-          // ═════════════════════════════════════════════════════════════
+          // TOP SECTION - Header with Background
+          // ══════════════════════════════════════════════════════════════
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: screenHeight * 0.45,
             child: Container(
-              // PERBAIKAN: Jarak bawah disesuaikan dengan area yang tertimpa form putih
-              // (0.45 tinggi background - 0.35 posisi form = 0.10 overlap) + 24 jarak aman
               padding: EdgeInsets.only(
                 left: 32, 
                 right: 32, 
@@ -133,11 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: Alignment.bottomLeft, 
               decoration: BoxDecoration(
                 color: KaruTheme.splashBackground,
-                // image: const DecorationImage(
-                //   image: AssetImage('assets/images/leaf_background.png'),
-                //   fit: BoxFit.cover,
-                //   colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
-                // ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min, 
@@ -171,8 +127,8 @@ class _LoginScreenState extends State<LoginScreen> {
           // BOTTOM SECTION - Login Form
           // ══════════════════════════════════════════════════════════════
           Positioned(
-            top: screenHeight * 0.35, // Membuat kotak putih lebih tinggi (mulai dari 35% tinggi layar)
-            bottom: 0, // Ditarik sampai mentok ke bawah layar
+            top: screenHeight * 0.35,
+            bottom: 0,
             left: 0,
             right: 0,
             child: Container(
@@ -187,7 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
                 child: Form(
                   key: _formKey,
-                  // SingleChildScrollView TETAP DIPERLUKAN agar tidak overflow saat keyboard muncul
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -434,10 +389,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                                     )
-                                  : Text(
+                                  : const Text(
                                       'MASUK',
                                       style: TextStyle(
-                                        color: Colors.lightGreen[300],
+                                        color: Color(0xFF42C9A0),
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 1.2,
@@ -455,42 +410,30 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
-                              'Forgot Password? ',
+                              'Lupa password? ',
                               style: TextStyle(
                                 color: Color(0xFF999999),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
-                            if (_isLoadingForgotPassword)
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF0D3B1B),
-                                  ),
-                                ),
-                              )
-                            else
-                              GestureDetector(
-                                onTap: _handleForgotPassword,
-                                child: const Text(
-                                  'Click Here',
-                                  style: TextStyle(
-                                    color: Color(0xFF0D3B1B),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    decoration: TextDecoration.underline,
-                                    decorationThickness: 1.5,
-                                  ),
+                            GestureDetector(
+                              onTap: _handleForgotPassword,
+                              child: const Text(
+                                'Hubungi Admin',
+                                style: TextStyle(
+                                  color: Color(0xFF42C9A0),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Color(0xFF42C9A0),
+                                  decorationThickness: 1.5,
                                 ),
                               ),
+                            ),
                           ],
                         ),
                         
-                        // Menambahkan jarak opsional agar version ditarik ke paling bawah (jika layar sangat tinggi)
                         const SizedBox(height: 32),
 
                         // ──────────────────────────────────────────────────
@@ -517,7 +460,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16), // Padding tambahan di dasar layar
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -526,6 +469,230 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Forgot Password Bottom Sheet — Premium Dialog
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _ForgotPasswordSheet extends StatefulWidget {
+  const _ForgotPasswordSheet();
+
+  @override
+  State<_ForgotPasswordSheet> createState() => _ForgotPasswordSheetState();
+}
+
+class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  Future<void> _openWhatsApp() async {
+    setState(() { _isLoading = true; _errorMessage = null; });
+
+    final api = ApiService();
+    try {
+      final res = await api.getWhatsappAdmin();
+      if (res.statusCode == 200 && res.data['success'] == true) {
+        final waNumber = res.data['data']?['whatsappNumber'];
+        if (waNumber != null && waNumber.toString().trim().isNotEmpty) {
+          final rawNumber = waNumber.toString().replaceAll(RegExp(r'[^0-9]'), '');
+          // Konversi 08xxx → 628xxx
+          final cleanNumber = rawNumber.startsWith('0')
+              ? '62${rawNumber.substring(1)}'
+              : rawNumber;
+          final message = Uri.encodeComponent(
+            'Halo Admin KARU 👋\n\nSaya lupa password akun mobile saya. Mohon bantuannya untuk me-reset password. Terima kasih.',
+          );
+          final url = Uri.parse('https://wa.me/$cleanNumber?text=$message');
+
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+            if (mounted) Navigator.pop(context);
+            return;
+          } else {
+            setState(() {
+              _errorMessage = 'Tidak dapat membuka WhatsApp.\nPastikan WhatsApp sudah terinstall di perangkat Anda.';
+            });
+          }
+        } else {
+          setState(() {
+            _errorMessage = 'Nomor WhatsApp admin belum dikonfigurasi.\nSilakan hubungi admin secara langsung.';
+          });
+        }
+      } else {
+        setState(() { _errorMessage = 'Gagal mendapatkan info kontak admin.'; });
+      }
+    } catch (e) {
+      setState(() { _errorMessage = 'Tidak dapat terhubung ke server.\nPeriksa koneksi internet Anda.'; });
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF5F5F3),
+        borderRadius: BorderRadius.all(Radius.circular(28)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          24, 12, 24,
+          24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDDDDD),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Icon
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF040D0B),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.lock_reset_rounded,
+                  color: Color(0xFF42C9A0),
+                  size: 36,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Title
+            const Text(
+              'Lupa Password?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0D1612),
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Description
+            Text(
+              'Kami akan menghubungkan Anda dengan admin KARU melalui WhatsApp untuk proses reset password dengan aman.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Error message
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEBEE),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFFCDD2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Color(0xFFC62828), size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFC62828),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // WhatsApp Button
+            ElevatedButton(
+              onPressed: _isLoading ? null : _openWhatsApp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366), // WA brand green
+                disabledBackgroundColor: const Color(0xFF25D366).withOpacity(0.5),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_rounded, color: Colors.white, size: 20),
+                        SizedBox(width: 10),
+                        Text(
+                          'Hubungi Admin via WhatsApp',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 10),
+
+            // Cancel Button
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text(
+                'Batal',
+                style: TextStyle(
+                  color: Color(0xFF999999),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
