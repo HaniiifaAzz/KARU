@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { aiScanLogs } from '@/lib/db/schema';
-import { eq, count, isNull, isNotNull, sql } from 'drizzle-orm';
+import { aiScanLogs, pestsDiseases } from '@/lib/db/schema';
+import { eq, count, sql } from 'drizzle-orm';
 import { getMobileUser } from '@/lib/auth/auth-guard';
 
 export async function GET() {
@@ -16,32 +16,39 @@ export async function GET() {
       .from(aiScanLogs)
       .where(eq(aiScanLogs.userId, user.id));
 
-    // Stats count: Sehat (diseaseId is null / "Sehat") vs Sakit
-    const diseaseStats = await db
+    const total = totalScansResult[0].count;
+
+    // Join dengan pestsDiseases untuk mendapatkan jenis (Penyakit / Hama)
+    const detailStats = await db
       .select({
-        diseaseId: aiScanLogs.diseaseId,
+        diagnosisResult: aiScanLogs.diagnosisResult,
+        jenis: pestsDiseases.jenis,
         count: count()
       })
       .from(aiScanLogs)
+      .leftJoin(pestsDiseases, eq(aiScanLogs.diseaseId, pestsDiseases.id))
       .where(eq(aiScanLogs.userId, user.id))
-      .groupBy(aiScanLogs.diseaseId);
+      .groupBy(aiScanLogs.diagnosisResult, pestsDiseases.jenis);
 
     let sehat = 0;
-    let sakit = 0;
+    let penyakit = 0;
     let hama = 0;
-    // Note: We might need to join pestsDiseases to know if it's disease or pest.
-    // For simplicity, just count if diseaseId exists.
-    for (const row of diseaseStats) {
-      if (!row.diseaseId) {
+
+    for (const row of detailStats) {
+      const diag = (row.diagnosisResult || '').toLowerCase();
+      const isHealthy = diag.includes('sehat') || diag.includes('normal');
+      
+      if (isHealthy) {
         sehat += row.count;
+      } else if (row.jenis === 'Hama') {
+        hama += row.count;
       } else {
-        // Asumsi jika ada diseaseId = Sakit/Hama
-        sakit += row.count;
+        // Default: anggap Penyakit jika tidak bisa dibedakan
+        penyakit += row.count;
       }
     }
 
-    const total = totalScansResult[0].count;
-    const healthPercentage = total > 0 ? Math.round((sehat / total) * 100) : 100;
+    const healthPercentage = total > 0 ? Math.round((sehat / total) * 100) : 0;
 
     return NextResponse.json({
       success: true,
@@ -50,7 +57,8 @@ export async function GET() {
         healthPercentage,
         chartData: [
           { label: 'Sehat', value: sehat },
-          { label: 'Terdeteksi', value: sakit }
+          { label: 'Penyakit', value: penyakit },
+          { label: 'Hama', value: hama },
         ]
       }
     });

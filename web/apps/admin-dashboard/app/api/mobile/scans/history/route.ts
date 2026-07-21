@@ -27,6 +27,7 @@ export async function GET(req: Request) {
         disease: {
           id: pestsDiseases.id,
           nama: pestsDiseases.nama,
+          jenis: pestsDiseases.jenis,     // 'Penyakit' atau 'Hama'
           kategori: pestsDiseases.kategori,
           penanganan: pestsDiseases.penanganan
         },
