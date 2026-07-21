@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
-import 'dart:convert';
 
 class WorkspaceMapScreen extends StatefulWidget {
   final String workspaceId;
@@ -21,7 +21,7 @@ class WorkspaceMapScreen extends StatefulWidget {
 }
 
 class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
-  final Completer<GoogleMapController> _controller = Completer();
+  final MapController _mapController = MapController();
   final ApiService _api = ApiService();
 
   bool _isLoading = true;
@@ -29,9 +29,10 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
 
   Position? _currentPosition;
   LatLng? _workspaceCenter;
-  Set<Marker> _markers = {};
-  Set<Polyline> _polylines = {};
-  Set<Polygon> _polygons = {};
+  
+  List<Marker> _markers = [];
+  List<Polyline> _polylines = [];
+  List<Polygon> _polygons = [];
 
   @override
   void initState() {
@@ -100,7 +101,9 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
       setState(() {
         _isLoading = false;
       });
-      _fitMapToBounds();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fitMapToBounds();
+      });
     }
   }
 
@@ -114,13 +117,10 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
     if (data == null) return;
     
     // Asumsi API mengembalikan geojson / polygon coordinates
-    // Kita coba ekstrak polygon jika ada, atau lat/lng jika point
     List<LatLng> polygonPoints = [];
     
     try {
       if (data['polygon_info'] != null) {
-        // Coba parse jika format geojson atau custom struct
-        // (Di sini disesuaikan dengan struktur respons API Anda, fallback sederhana)
         final dynamic p = data['polygon_info'];
         if (p is Map && p['coordinates'] != null) {
           final coords = p['coordinates'][0]; 
@@ -136,11 +136,11 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
     if (polygonPoints.isNotEmpty) {
       _polygons.add(
         Polygon(
-          polygonId: const PolygonId('workspace_polygon'),
           points: polygonPoints,
-          strokeColor: KaruTheme.primary,
-          strokeWidth: 3,
-          fillColor: KaruTheme.primary.withOpacity(0.2),
+          borderColor: KaruTheme.primary,
+          borderStrokeWidth: 3,
+          color: KaruTheme.primary.withOpacity(0.2),
+          isFilled: true,
         )
       );
 
@@ -169,10 +169,10 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
     if (_currentPosition != null) {
       _markers.add(
         Marker(
-          markerId: const MarkerId('user_location'),
-          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          infoWindow: const InfoWindow(title: 'Lokasi Anda'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          width: 40,
+          height: 40,
+          child: const Icon(Icons.my_location, color: Colors.blue, size: 30),
         )
       );
     }
@@ -180,10 +180,10 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
     if (_workspaceCenter != null) {
       _markers.add(
         Marker(
-          markerId: const MarkerId('workspace_location'),
-          position: _workspaceCenter!,
-          infoWindow: InfoWindow(title: widget.workspaceName),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          point: _workspaceCenter!,
+          width: 40,
+          height: 40,
+          child: const Icon(Icons.location_on, color: Colors.green, size: 40),
         )
       );
     }
@@ -191,57 +191,41 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
     if (_currentPosition != null && _workspaceCenter != null) {
       _polylines.add(
         Polyline(
-          polylineId: const PolylineId('route_line'),
           points: [
             LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             _workspaceCenter!,
           ],
           color: KaruTheme.primary,
-          width: 4,
-          patterns: [PatternItem.dash(20), PatternItem.gap(10)], // Garis putus-putus
+          strokeWidth: 4,
+          isDotted: true,
         )
       );
     }
   }
 
-  Future<void> _fitMapToBounds() async {
+  void _fitMapToBounds() {
     if (_currentPosition == null || _workspaceCenter == null) return;
 
-    final GoogleMapController controller = await _controller.future;
+    final bounds = LatLngBounds.fromPoints([
+      LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+      _workspaceCenter!
+    ]);
 
-    LatLngBounds bounds;
-    final userLatLng = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
-    
-    if (userLatLng.latitude > _workspaceCenter!.latitude) {
-      bounds = LatLngBounds(southwest: _workspaceCenter!, northeast: userLatLng);
-    } else {
-      bounds = LatLngBounds(southwest: userLatLng, northeast: _workspaceCenter!);
-    }
-
-    await Future.delayed(const Duration(milliseconds: 500));
-    controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+    _mapController.fitCamera(CameraFit.bounds(
+      bounds: bounds,
+      padding: const EdgeInsets.all(50.0),
+    ));
   }
 
-  Future<void> _centerOnUser() async {
+  void _centerOnUser() {
     if (_currentPosition == null) return;
-    final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newLatLngZoom(
-      LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 16));
+    _mapController.move(LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 16.0);
   }
 
-  Future<void> _centerOnWorkspace() async {
+  void _centerOnWorkspace() {
     if (_workspaceCenter == null) return;
-    final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newLatLngZoom(_workspaceCenter!, 16));
+    _mapController.move(_workspaceCenter!, 16.0);
   }
-
-  // Desain Map sederhana & clean (Retro style)
-  final String _mapStyle = '''
-  [
-    {"featureType": "poi", "elementType": "labels", "stylers": [{"visibility": "off"}]},
-    {"featureType": "transit", "elementType": "labels", "stylers": [{"visibility": "off"}]}
-  ]
-  ''';
 
   @override
   Widget build(BuildContext context) {
@@ -253,30 +237,32 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
         elevation: 0,
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: KaruTheme.primary))
+          ? const Center(child: CircularProgressIndicator(color: KaruTheme.primary))
           : _error != null
               ? _buildErrorState()
               : Stack(
                   children: [
-                    GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                        target: _workspaceCenter ?? 
+                    FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _workspaceCenter ?? 
                                 (_currentPosition != null 
                                   ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) 
                                   : const LatLng(-6.200000, 106.816666)),
-                        zoom: 14,
+                        initialZoom: 14.0,
                       ),
-                      markers: _markers,
-                      polylines: _polylines,
-                      polygons: _polygons,
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: false, // Kita buat custom button
-                      zoomControlsEnabled: false,
-                      mapToolbarEnabled: false,
-                      onMapCreated: (GoogleMapController controller) {
-                        _controller.complete(controller);
-                        controller.setMapStyle(_mapStyle);
-                      },
+                      children: [
+                        TileLayer(
+                          urlTemplate: "http://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+                        ),
+                        TileLayer(
+                          urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                          userAgentPackageName: 'com.example.mobile',
+                        ),
+                        PolygonLayer(polygons: _polygons),
+                        PolylineLayer(polylines: _polylines),
+                        MarkerLayer(markers: _markers),
+                      ],
                     ),
 
                     // Panel Info Jarak (di bagian atas map)
@@ -306,7 +292,7 @@ class _WorkspaceMapScreenState extends State<WorkspaceMapScreen> {
                                   color: KaruTheme.primary.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(Icons.route_rounded, color: KaruTheme.primary),
+                                child: const Icon(Icons.route_rounded, color: KaruTheme.primary),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
