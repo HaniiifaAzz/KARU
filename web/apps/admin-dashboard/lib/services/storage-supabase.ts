@@ -10,8 +10,8 @@ export class SupabaseStorageService implements IStorageService {
   private supabase;
 
   constructor() {
-    let url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_KEY;
+    let url = (process.env.SUPABASE_URL || '').trim().replace(/^["']|["']$/g, '');
+    let key = (process.env.SUPABASE_SERVICE_KEY || '').trim().replace(/^["']|["']$/g, '');
 
     if (!url || !key) {
       throw new Error(
@@ -19,13 +19,13 @@ export class SupabaseStorageService implements IStorageService {
       );
     }
 
-    // Bersihkan URL dari path rest/v1/ yang sering tidak sengaja tercopy dari Supabase API Settings
-    // karena supabase-js createClient hanya membutuhkan base URL project.
-    if (url.endsWith('/rest/v1/')) {
-      url = url.replace('/rest/v1/', '');
-    } else if (url.endsWith('/rest/v1')) {
-      url = url.replace('/rest/v1', '');
+    // Pastikan URL memiliki skema http:// atau https://
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
     }
+
+    // Bersihkan URL dari path rest/v1/ atau trailing slash
+    url = url.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
 
     this.supabase = createClient(url, key);
   }

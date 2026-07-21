@@ -14,7 +14,12 @@ export function getStorageService(): IStorageService {
   if (_instance) return _instance;
 
   if (process.env.STORAGE_PROVIDER === 'supabase') {
-    _instance = new SupabaseStorageService();
+    try {
+      _instance = new SupabaseStorageService();
+    } catch (e) {
+      console.warn('Gagal inisialisasi SupabaseStorageService, menggunakan LocalStorageService fallback:', e);
+      _instance = new LocalStorageService();
+    }
   } else {
     _instance = new LocalStorageService();
   }

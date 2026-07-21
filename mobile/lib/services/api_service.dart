@@ -94,6 +94,8 @@ class ApiService {
     required String imageUrl,
   }) async {
     return await _dio.post(ApiConfig.scans, data: {
+      'lat': latitude,
+      'lng': longitude,
       'latitude': latitude,
       'longitude': longitude,
       if (workspaceId != null) 'workspaceId': workspaceId,
