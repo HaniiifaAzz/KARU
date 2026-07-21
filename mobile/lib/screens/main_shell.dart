@@ -3,6 +3,7 @@ import 'home/home_screen.dart';
 import 'workspace/workspace_list_screen.dart';
 import 'history/history_screen.dart';
 import 'profile/profile_screen.dart';
+import 'scan/scan_leaf_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -22,15 +23,29 @@ class MainShellState extends State<MainShell> {
     const ProfileScreen(),
   ];
 
+  void _openScanScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ScanLeafScreen(),
+      ),
+    );
+  }
+
   void switchTab(int index) {
-    if (index == 2) return;
+    if (index == 2) {
+      _openScanScreen();
+      return;
+    }
     setState(() {
       _currentIndex = index;
     });
   }
 
   void _onTabTapped(int index) {
-    if (index == 2) return;
+    if (index == 2) {
+      _openScanScreen();
+      return;
+    }
     setState(() {
       _currentIndex = index;
     });
@@ -43,55 +58,58 @@ class MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: _screens,
       ),
-      floatingActionButton: SizedBox(
-        width: 64,
-        height: 64,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2E7D32).withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 4,
-                  ),
-                ],
+      floatingActionButton: GestureDetector(
+        onTap: _openScanScreen,
+        child: SizedBox(
+          width: 64,
+          height: 64,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Container(
-              width: 46,
-              height: 46,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFF1B5E20),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF1B5E20),
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

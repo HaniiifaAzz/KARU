@@ -52,6 +52,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _openDetail(Map<String, dynamic> scan) {
     final disease = scan['disease'] as Map<String, dynamic>?;
+    final diag = (scan['diagnosisResult'] ?? '').toString().toLowerCase();
+    final isHealthy = diag.contains('sehat') || diag.contains('normal');
+    
+    // Gunakan jenis dari master data jika ada, fallback ke deteksi teks
+    final String aiCategory;
+    if (isHealthy) {
+      aiCategory = 'Sehat';
+    } else if (disease?['jenis'] != null) {
+      aiCategory = disease!['jenis'] as String; // 'Penyakit' atau 'Hama'
+    } else {
+      aiCategory = 'Penyakit'; // default jika tidak ada di master data
+    }
     
     Navigator.push(
       context,
@@ -61,11 +73,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           validationStatus: scan['validationStatus'] ?? 'Tidak Diketahui',
           message: 'Detail Riwayat Pindaian',
           aiDiagnosis: {
-            'isHealthy': (disease == null || disease.isEmpty),
+            'isHealthy': isHealthy,
             'diagnosisResult': scan['diagnosisResult'] ?? (disease?['nama'] ?? 'Tidak Diketahui'),
-            'category': disease?['kategori'] ?? 'Terdeteksi',
+            'category': aiCategory,
             'probability': scan['probability'] ?? 0,
-            'recommendation': disease?['penanganan'] ?? 'Tidak ada rekomendasi/SOP khusus.',
+            'recommendation': disease?['penanganan'] ?? (isHealthy ? 'Tanaman dalam kondisi baik.' : 'Tidak ada rekomendasi/SOP khusus.'),
             'description': 'Dipindai pada lokasi lahan: ${scan['workspace']?['name'] ?? 'Tidak diketahui'}',
           },
         ),

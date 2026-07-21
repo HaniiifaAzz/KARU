@@ -167,8 +167,8 @@ class ScanResultScreen extends StatelessWidget {
                           children: [
                             _buildBadge(
                               label: category,
-                              color: isHealthy ? Colors.green : Colors.red,
-                              icon: isHealthy ? Icons.check_circle_rounded : Icons.bug_report_rounded,
+                              color: _getCategoryColor(category),
+                              icon: _getCategoryIcon(category),
                             ),
                             if (severity != null) ...[
                               const SizedBox(width: 8),
@@ -420,6 +420,30 @@ class ScanResultScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'sehat':
+        return Colors.green[700]!;
+      case 'hama':
+        return Colors.orange[800]!;
+      case 'penyakit':
+      default:
+        return Colors.red[700]!;
+    }
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'sehat':
+        return Icons.check_circle_rounded;
+      case 'hama':
+        return Icons.pest_control_rounded;
+      case 'penyakit':
+      default:
+        return Icons.coronavirus_rounded;
+    }
   }
 
   Color _getSeverityColor(String severity) {
