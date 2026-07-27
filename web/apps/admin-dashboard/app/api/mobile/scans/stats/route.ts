@@ -18,17 +18,17 @@ export async function GET() {
 
     const total = totalScansResult[0].count;
 
-    // Join dengan pestsDiseases untuk mendapatkan jenis (Penyakit / Hama)
     const detailStats = await db
       .select({
         diagnosisResult: aiScanLogs.diagnosisResult,
+        aiCategory: aiScanLogs.aiCategory,
         jenis: pestsDiseases.jenis,
         count: count()
       })
       .from(aiScanLogs)
       .leftJoin(pestsDiseases, eq(aiScanLogs.diseaseId, pestsDiseases.id))
       .where(eq(aiScanLogs.userId, user.id))
-      .groupBy(aiScanLogs.diagnosisResult, pestsDiseases.jenis);
+      .groupBy(aiScanLogs.diagnosisResult, aiScanLogs.aiCategory, pestsDiseases.jenis);
 
     let sehat = 0;
     let penyakit = 0;
@@ -38,12 +38,20 @@ export async function GET() {
       const diag = (row.diagnosisResult || '').toLowerCase();
       const isHealthy = diag.includes('sehat') || diag.includes('normal');
       
-      if (isHealthy) {
+      let finalCategory = 'Penyakit';
+      if (row.aiCategory) {
+        finalCategory = row.aiCategory;
+      } else if (isHealthy) {
+        finalCategory = 'Sehat';
+      } else if (row.jenis) {
+        finalCategory = row.jenis;
+      }
+
+      if (finalCategory === 'Sehat') {
         sehat += row.count;
-      } else if (row.jenis === 'Hama') {
+      } else if (finalCategory === 'Hama') {
         hama += row.count;
       } else {
-        // Default: anggap Penyakit jika tidak bisa dibedakan
         penyakit += row.count;
       }
     }
