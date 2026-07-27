@@ -55,15 +55,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final diag = (scan['diagnosisResult'] ?? '').toString().toLowerCase();
     final isHealthy = diag.contains('sehat') || diag.contains('normal');
     
-    // Gunakan jenis dari master data jika ada, fallback ke deteksi teks
+    // Gunakan kategori dari AI (opsi 1), lalu master data (opsi 2), lalu deteksi teks
     final String aiCategory;
-    if (isHealthy) {
+    if (scan['aiCategory'] != null) {
+      aiCategory = scan['aiCategory'];
+    } else if (isHealthy) {
       aiCategory = 'Sehat';
     } else if (disease?['jenis'] != null) {
       aiCategory = disease!['jenis'] as String; // 'Penyakit' atau 'Hama'
     } else {
       aiCategory = 'Penyakit'; // default jika tidak ada di master data
     }
+
+    final String recommendation = scan['aiRecommendation'] ?? 
+        disease?['penanganan'] ?? 
+        (isHealthy ? 'Tanaman dalam kondisi baik.' : 'Tidak ada rekomendasi/SOP khusus.');
+
+    final String description = scan['aiDescription'] ?? 
+        'Dipindai pada lokasi lahan: ${scan['workspace']?['name'] ?? 'Tidak diketahui'}';
     
     Navigator.push(
       context,
@@ -77,8 +86,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             'diagnosisResult': scan['diagnosisResult'] ?? (disease?['nama'] ?? 'Tidak Diketahui'),
             'category': aiCategory,
             'probability': scan['probability'] ?? 0,
-            'recommendation': disease?['penanganan'] ?? (isHealthy ? 'Tanaman dalam kondisi baik.' : 'Tidak ada rekomendasi/SOP khusus.'),
-            'description': 'Dipindai pada lokasi lahan: ${scan['workspace']?['name'] ?? 'Tidak diketahui'}',
+            'recommendation': recommendation,
+            'description': description,
           },
         ),
       ),

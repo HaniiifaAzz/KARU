@@ -100,7 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final isHealthy = diag.contains('sehat') || diag.contains('normal');
 
     final String aiCategory;
-    if (isHealthy) {
+    if (scan['aiCategory'] != null) {
+      aiCategory = scan['aiCategory'];
+    } else if (isHealthy) {
       aiCategory = 'Sehat';
     } else if (disease?['jenis'] != null) {
       aiCategory = disease!['jenis'] as String; // 'Penyakit' atau 'Hama'
@@ -108,6 +110,13 @@ class _HomeScreenState extends State<HomeScreen> {
       aiCategory = 'Penyakit'; // default
     }
     
+    final String recommendation = scan['aiRecommendation'] ?? 
+        disease?['penanganan'] ?? 
+        (isHealthy ? 'Tanaman dalam kondisi baik.' : 'Tidak ada rekomendasi/SOP khusus.');
+
+    final String description = scan['aiDescription'] ?? 
+        'Dipindai pada lokasi lahan: ${scan['workspace']?['name'] ?? 'Tidak diketahui'}';
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -120,8 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
             'diagnosisResult': scan['diagnosisResult'] ?? (disease?['nama'] ?? 'Tidak Diketahui'),
             'category': aiCategory,
             'probability': scan['probability'] ?? 0,
-            'recommendation': disease?['penanganan'] ?? (isHealthy ? 'Tanaman dalam kondisi baik.' : 'Tidak ada rekomendasi/SOP khusus.'),
-            'description': 'Dipindai pada lokasi lahan: ${scan['workspace']?['name'] ?? 'Tidak diketahui'}',
+            'recommendation': recommendation,
+            'description': description,
           },
         ),
       ),
