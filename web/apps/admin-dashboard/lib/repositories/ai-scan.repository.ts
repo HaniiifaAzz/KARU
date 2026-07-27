@@ -21,6 +21,9 @@ export class AiScanRepository {
     diagnosisResult: string;
     probability: number;
     diseaseId?: string;
+    aiCategory?: string;
+    aiRecommendation?: string;
+    aiDescription?: string;
   }) {
     const [lng, lat] = data.location;
 
@@ -35,7 +38,10 @@ export class AiScanRepository {
       validationStatus: data.validationStatus,
       diagnosisResult: data.diagnosisResult,
       probability: data.probability,
-      diseaseId: data.diseaseId
+      diseaseId: data.diseaseId,
+      aiCategory: data.aiCategory,
+      aiRecommendation: data.aiRecommendation,
+      aiDescription: data.aiDescription,
     }).returning({ id: aiScanLogs.id });
 
     return res[0].id;

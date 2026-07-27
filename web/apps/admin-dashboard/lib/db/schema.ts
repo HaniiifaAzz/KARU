@@ -171,6 +171,9 @@ export const aiScanLogs = pgTable('ai_scan_logs', {
   imageUrl: text('image_url'),
   validationStatus: varchar('validation_status', { length: 50 }), // Valid / Di Luar Batas
   diagnosisResult: varchar('diagnosis_result', { length: 255 }),
+  aiCategory: varchar('ai_category', { length: 50 }), // Penyakit / Hama / Sehat
+  aiRecommendation: text('ai_recommendation'),
+  aiDescription: text('ai_description'),
   diseaseId: varchar('disease_id', { length: 20 }).references(() => pestsDiseases.id), // Link hasil analisis ke Master Data
   probability: integer('probability'), // 0 - 100
   scannedAt: timestamp('scanned_at').defaultNow(),

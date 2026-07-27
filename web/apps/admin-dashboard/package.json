@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx lib/db/seed.ts",
-    "db:seed-scans": "tsx lib/db/seed-scans.ts"
+    "db:seed-scans": "tsx lib/db/seed-scans.ts",
+    "db:seed-master": "tsx lib/db/seed-master-data.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

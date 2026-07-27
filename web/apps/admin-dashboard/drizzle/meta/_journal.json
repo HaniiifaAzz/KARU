@@ -29,6 +29,13 @@
       "when": 1783656323808,
       "tag": "0003_dizzy_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785163120486,
+      "tag": "0004_needy_shaman",
+      "breakpoints": true
     }
   ]
 }

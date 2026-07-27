@@ -137,6 +137,9 @@ export class AiScanService {
       diagnosisResult: finalDiagnosis,
       probability: finalProbability || 0,
       diseaseId: finalDiseaseId || undefined,
+      aiCategory: aiDiagnosisDetails?.category,
+      aiRecommendation: aiDiagnosisDetails?.recommendation,
+      aiDescription: aiDiagnosisDetails?.description,
     });
 
     return {

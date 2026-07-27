@@ -24,6 +24,9 @@ export async function GET(req: Request) {
         diagnosisResult: aiScanLogs.diagnosisResult,
         probability: aiScanLogs.probability,
         scannedAt: aiScanLogs.scannedAt,
+        aiCategory: aiScanLogs.aiCategory,
+        aiRecommendation: aiScanLogs.aiRecommendation,
+        aiDescription: aiScanLogs.aiDescription,
         disease: {
           id: pestsDiseases.id,
           nama: pestsDiseases.nama,
