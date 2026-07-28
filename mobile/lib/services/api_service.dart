@@ -135,20 +135,26 @@ class ApiService {
   Future<Response> updateProfile({
     String? name,
     String? phone,
+    String? image,
   }) async {
     return await _dio.put(ApiConfig.profileUpdate, data: {
-      if (name != null) 'name': name,
+      if (name != null && name.isNotEmpty) 'name': name,
       if (phone != null) 'phone': phone,
+      if (image != null) 'image': image,
     });
   }
 
   // ── Upload ──────────────────────────────────────────────────────────
 
-  Future<Response> uploadFile(String filePath, {String fieldName = 'file'}) async {
+  Future<Response> uploadFile(String filePath, {String fieldName = 'file', String? folder}) async {
     final fileName = filePath.split('/').last;
-    final formData = FormData.fromMap({
+    final Map<String, dynamic> mapData = {
       fieldName: await MultipartFile.fromFile(filePath, filename: fileName),
-    });
+    };
+    if (folder != null) {
+      mapData['folder'] = folder;
+    }
+    final formData = FormData.fromMap(mapData);
     return await _dio.post(ApiConfig.upload, data: formData);
   }
 
