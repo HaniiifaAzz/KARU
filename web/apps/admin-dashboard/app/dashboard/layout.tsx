@@ -127,7 +127,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Mobile Overlay ── */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -223,10 +223,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-medium">WorkSpace</span>
           </Link>
 
-          <Link href="/dashboard/qr-node" className={navLinkClass(isActivePrefix('/dashboard/qr-node'))}>
+          {/* <Link href="/dashboard/qr-node" className={navLinkClass(isActivePrefix('/dashboard/qr-node'))}>
             <span className="material-symbols-outlined">qr_code_2</span>
             <span className="text-sm font-medium">Aset Node QR</span>
-          </Link>
+          </Link> */}
 
           <Link href="/dashboard/reports-ai" className={navLinkClass(isActivePrefix('/dashboard/reports-ai'))}>
             <span className="material-symbols-outlined">monitoring</span>
