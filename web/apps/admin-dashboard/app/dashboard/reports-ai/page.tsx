@@ -403,6 +403,52 @@ export default function ReportsAIPage() {
   const totalValid = logs.filter(l => l.validationStatus?.toLowerCase() === 'valid').length;
   const totalInvalid = logs.length - totalValid;
 
+  // Handler Export Laporan CSV
+  const handleExportCSV = useCallback(() => {
+    if (filteredLogs.length === 0) return alert('Tidak ada data untuk diekspor.');
+    
+    const headers = [
+      'ID Pindaian', 'Waktu Pindaian', 'Operator Lapangan', 'Ruang Kerja', 
+      'Titik QR Node', 'Status Geofence', 'Hasil Diagnosis AI', 'Probabilitas (%)', 'Rekomendasi'
+    ];
+    
+    const rows = filteredLogs.map(log => {
+      const displayId = `SCAN-${String(log.id).padStart(3, '0')}`;
+      const waktu = log.scannedAt ? new Date(log.scannedAt).toLocaleString('id-ID') : '';
+      const operator = log.userName || 'Sistem Patroli';
+      const workspace = log.workspaceName || log.workspaceId || '';
+      const qrNode = log.qrNodeId || '';
+      const statusGeo = log.validationStatus || (log.validationStatus?.toLowerCase() === 'valid' ? 'Valid' : 'Di Luar Batas');
+      const hasil = log.diagnosisResult || 'Tanpa Diagnosis';
+      const prob = log.probability || 0;
+      const rekomen = (log.diseaseRecommendation || '').replace(/"/g, '""'); // Escape double quotes
+
+      return [
+        displayId,
+        `"${waktu}"`,
+        `"${operator}"`,
+        `"${workspace}"`,
+        `"${qrNode}"`,
+        `"${statusGeo}"`,
+        `"${hasil}"`,
+        prob,
+        `"${rekomen}"`
+      ].join(',');
+    });
+    
+    // Prefix BOM (\uFEFF) to make Excel understand UTF-8 automatically
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_Pindaian_KARU_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredLogs]);
+
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full pb-20">
       {/* Header */}
@@ -414,6 +460,15 @@ export default function ReportsAIPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-4 py-2.5 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-bold hover:bg-emerald-50 transition-colors bg-emerald-50/50 shadow-sm"
+            title="Unduh laporan dalam format CSV (Excel)"
+          >
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            Export Excel
+          </button>
           <button
             type="button"
             onClick={loadData}
