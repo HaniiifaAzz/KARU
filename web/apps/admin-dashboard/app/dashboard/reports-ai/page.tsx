@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAllScanLogsAction, deleteScanLogAction } from '@/app/actions/ai-scan.actions';
+import { useSession } from '@/lib/auth-client';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type ScanLogItem = {
@@ -321,6 +322,7 @@ function AnalystBadge({ name }: { name: string }) {
 
 // ── Main Page Component ────────────────────────────────────────────────────────
 export default function ReportsAIPage() {
+  const { data: session } = useSession();
   const [logs, setLogs] = useState<ScanLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -449,6 +451,217 @@ export default function ReportsAIPage() {
     URL.revokeObjectURL(url);
   }, [filteredLogs]);
 
+  // Handler Export Laporan PDF (Format Surat Resmi)
+  const handleExportPDF = useCallback(() => {
+    if (filteredLogs.length === 0) return alert('Tidak ada data untuk dicetak.');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Tolong izinkan pop-ups pada browser Anda untuk mencetak PDF.');
+      return;
+    }
+
+    const userName = session?.user?.name || 'Administrator';
+    const today = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    let rowsHtml = '';
+    filteredLogs.forEach((log, index) => {
+      const displayId = `SCAN-${String(log.id).padStart(3, '0')}`;
+      
+      let waktu = '—';
+      if (log.scannedAt) {
+        const dt = new Date(log.scannedAt);
+        waktu = `${dt.toLocaleDateString('id-ID')} ${dt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+
+      const operator = log.userName || 'Sistem Patroli';
+      const workspace = log.workspaceName || log.workspaceId || '—';
+      const statusGeo = log.validationStatus?.toLowerCase() === 'valid' ? 'Valid' : 'Di Luar Batas';
+      const hasil = log.diagnosisResult || 'Tanpa Diagnosis';
+      const prob = log.probability ? `${log.probability}%` : '-';
+      
+      rowsHtml += `
+        <tr>
+          <td style="text-align: center;">${index + 1}</td>
+          <td>${displayId}</td>
+          <td>${waktu}</td>
+          <td>${operator}</td>
+          <td>${workspace}</td>
+          <td style="text-align: center;">${statusGeo}</td>
+          <td>${hasil} (${prob})</td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <title>KARU - Laporan Diagnosis AI</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1e293b;
+            margin: 0;
+            padding: 20px;
+          }
+          .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #10b981;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+          }
+          .header-left h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #047857;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+          }
+          .header-left p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: #64748b;
+          }
+          .header-right {
+            text-align: right;
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.5;
+          }
+          .summary-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            font-size: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+          .summary-item {
+            color: #64748b;
+          }
+          .summary-item strong {
+            color: #0f172a;
+            display: block;
+            margin-top: 2px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            font-size: 11px;
+          }
+          th, td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 10px 8px;
+            text-align: left;
+            vertical-align: middle;
+          }
+          th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px dashed #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+          }
+          .footer-sign {
+            text-align: right;
+          }
+          .footer-sign .name {
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 3px;
+            font-size: 13px;
+          }
+          @media print {
+            @page { margin: 1.5cm; size: A4 portrait; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        
+        <div class="header-container">
+          <div class="header-left">
+            <h1>KARU System Analytics</h1>
+            <p>Laporan Ekspor Data Diagnosis AI Tanaman</p>
+          </div>
+          <div class="header-right">
+            <div>Dokumen ID: <strong>KARU-REP-${Date.now().toString().slice(-6)}</strong></div>
+            <div>Dihasilkan pada: <strong>${today}</strong></div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-item">
+            Total Data Terambil:
+            <strong>${filteredLogs.length} Log Pindaian</strong>
+          </div>
+          <div class="summary-item">
+            Status Filter Sistem:
+            <strong>Kriteria Pencarian & Filter Aktif Diterapkan</strong>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 30px; text-align: center;">No</th>
+              <th style="width: 80px;">ID Pindaian</th>
+              <th style="width: 110px;">Waktu</th>
+              <th style="width: 120px;">Operator / Analis</th>
+              <th style="width: 120px;">Ruang Kerja</th>
+              <th style="width: 80px; text-align: center;">Geofence</th>
+              <th>Hasil Diagnosis AI & Probabilitas</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>
+            <p style="margin: 0;"><strong>KARU - Your Intelligent Green Eye</strong></p>
+            <p style="margin: 2px 0 0;">Dicetak otomatis dari modul laporan AI.</p>
+          </div>
+          <div class="footer-sign">
+            Diakses & diekspor oleh:
+            <div class="name">${userName}</div>
+          </div>
+        </div>
+
+        <script>
+          // Tunggu render selesai baru print
+          window.onload = () => {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }, [filteredLogs, session]);
+
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full pb-20">
       {/* Header */}
@@ -460,6 +673,15 @@ export default function ReportsAIPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5">
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 px-4 py-2.5 border border-red-200 text-red-800 rounded-xl text-sm font-bold hover:bg-red-50 transition-colors bg-red-50/50 shadow-sm"
+            title="Cetak atau simpan laporan dalam format PDF"
+          >
+            <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+            Export PDF
+          </button>
           <button
             type="button"
             onClick={handleExportCSV}
